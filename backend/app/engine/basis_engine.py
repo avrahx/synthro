@@ -2,15 +2,13 @@
 HyperVault Alpha — Polars-Based Vectorized Basis & Funding Engine
 
 Performs delta-neutral basis arbitrage simulation with 1-hour funding
-settlement (Hyperliquid-native cadence) using Polars for sub-millisecond
-vectorized computation.
+settlement using Polars for sub-millisecond vectorized computation.
 """
 
 from __future__ import annotations
 
 import uuid
 from typing import Any
-
 import numpy as np
 import polars as pl
 
@@ -22,242 +20,267 @@ from app.models.schemas import (
 )
 
 
-class BasisEngine:
+class BasisBacktestEngine:
     """
-    Vectorized backtest engine for intra-L1 basis arbitrage.
+    Vectorized backtest engine for intra-L1 and cross-venue basis arbitrage.
 
     Strategy:
-        1. Hourly: evaluate basis spread + funding rate per asset
-        2. Enter delta-neutral position when basis > entry_threshold
-        3. Accrue 1h funding settlements (HL-native hourly cadence)
-        4. Exit when basis compresses below exit_threshold or max epochs reached
-        5. Rebalance delta every `rebalance_epochs` hours
+        1. Hourly: evaluate funding rate per asset.
+        2. Calculate rolling Z-score of funding spreads.
+        3. Rank assets and allocate capital to top K assets every N epochs.
+        4. Accrue 1h funding settlements.
+        5. Apply taker fees and slippage on rebalancing turnover.
     """
 
     def __init__(self, request: BacktestRequest) -> None:
         self.req = request
-        self.taker_fee = request.taker_fee_bps / 10_000
-        self.maker_fee = request.maker_fee_bps / 10_000
-        self.slippage = request.slippage_bps / 10_000
-        self.entry_bps = request.entry_threshold_bps
-        self.exit_bps = request.exit_threshold_bps
-        self.rebalance_epochs = request.rebalance_epochs
+        self.taker_fee = request.taker_fee_bps / 10_000.0
+        self.slippage = request.slippage_bps / 10_000.0
+        self.rebalance_epochs = request.rebalance_freq_hours
+        self.margin_borrow_apr = request.margin_borrow_apr
+        self.strategy_mode = request.strategy_mode
+        self.top_k = min(3, len(request.assets)) if request.assets else 1
 
     def run(
         self, raw_data: list[dict[str, Any]],
     ) -> tuple[list[EquitySnapshot], list[TradeRecord], list[AssetAttribution]]:
         """Execute the full vectorized backtest pipeline."""
+        if not raw_data:
+            return [], [], []
 
+        # 1. Load Data
         df = pl.DataFrame(raw_data)
-        n_assets = len(self.req.assets)
-        alloc_per_asset = (
-            self.req.initial_capital * self.req.max_leverage
-        ) / max(n_assets, 1)
+        
+        # Sort chronologically and by asset
+        df = df.sort(["epoch", "asset"])
 
-        # ── Per-asset position state ─────────────────────────────────────
-        positions: dict[str, dict[str, Any]] = {}
-        for asset in self.req.assets:
-            positions[asset] = {
-                "active": False,
-                "entry_epoch": 0,
-                "entry_basis": 0.0,
-                "entry_price": 0.0,
-                "notional": 0.0,
-                "cum_funding": 0.0,
-                "cum_basis_pnl": 0.0,
-                "cum_fees": 0.0,
-                "trade_count": 0,
-            }
-
-        # ── Portfolio-level state ────────────────────────────────────────
-        cash = self.req.initial_capital
-        nav = self.req.initial_capital
-        hwm = self.req.initial_capital
-        cum_funding = 0.0
-        cum_fees = 0.0
-        cum_slippage = 0.0
-
-        trades: list[TradeRecord] = []
-        equity_curve: list[EquitySnapshot] = []
-
-        # Sort by epoch, then asset for deterministic walk
-        timestamps = sorted(df["timestamp"].unique().to_list())
-
-        prev_nav = nav
-
-        for ts in timestamps:
-            ts_slice = df.filter(pl.col("timestamp") == ts)
-            epoch_row = ts_slice.row(0, named=True)
-            epoch = int(epoch_row["epoch"])
-
-            step_funding = 0.0
-            step_fees = 0.0
-            step_slippage = 0.0
-
-            for asset in self.req.assets:
-                asset_rows = ts_slice.filter(pl.col("asset") == asset)
-                if asset_rows.height == 0:
-                    continue
-
-                row = asset_rows.row(0, named=True)
-                mark = float(row["mark_price"])
-                basis = float(row["basis_bps"])
-                funding_1h = float(row["funding_rate_1h"])
-                pos = positions[asset]
-
-                # ── ENTRY LOGIC ──────────────────────────────────────────
-                if not pos["active"]:
-                    if basis >= self.entry_bps and funding_1h > 0:
-                        entry_cost = alloc_per_asset * (self.taker_fee * 2 + self.slippage)
-                        pos["active"] = True
-                        pos["entry_epoch"] = epoch
-                        pos["entry_basis"] = basis
-                        pos["entry_price"] = mark
-                        pos["notional"] = alloc_per_asset
-                        pos["cum_fees"] += entry_cost
-                        pos["trade_count"] += 1
-                        step_fees += entry_cost * (self.taker_fee * 2 / (self.taker_fee * 2 + self.slippage))
-                        step_slippage += entry_cost * (self.slippage / (self.taker_fee * 2 + self.slippage))
-
-                        trades.append(TradeRecord(
-                            id=uuid.uuid4().hex[:8],
-                            epoch=epoch,
-                            timestamp=ts,
-                            asset=asset,
-                            action="OPEN_BASIS",
-                            side="LONG_SPOT_SHORT_PERP",
-                            notional_usd=round(alloc_per_asset, 2),
-                            mark_price=mark,
-                            basis_bps=basis,
-                            funding_rate_1h=funding_1h,
-                            fee_paid=round(entry_cost, 2),
-                        ))
-
-                # ── ACTIVE POSITION MANAGEMENT ───────────────────────────
-                elif pos["active"]:
-                    epochs_held = epoch - pos["entry_epoch"]
-
-                    # Exit condition
-                    should_exit = (
-                        basis <= self.exit_bps
-                        or funding_1h < -0.0002
-                        or epochs_held > 168  # max 1 week hold
-                    )
-
-                    if should_exit:
-                        # Basis convergence PnL
-                        basis_pnl = pos["notional"] * (
-                            (pos["entry_basis"] - basis) / 10_000
-                        )
-                        exit_cost = pos["notional"] * (self.taker_fee * 2 + self.slippage)
-                        pos["cum_basis_pnl"] += basis_pnl
-                        pos["cum_fees"] += exit_cost
-                        pos["trade_count"] += 1
-                        step_fees += exit_cost * (self.taker_fee * 2 / (self.taker_fee * 2 + self.slippage))
-                        step_slippage += exit_cost * (self.slippage / (self.taker_fee * 2 + self.slippage))
-                        cash += basis_pnl
-
-                        trades.append(TradeRecord(
-                            id=uuid.uuid4().hex[:8],
-                            epoch=epoch,
-                            timestamp=ts,
-                            asset=asset,
-                            action="CLOSE_BASIS",
-                            side="FLAT",
-                            notional_usd=round(pos["notional"], 2),
-                            mark_price=mark,
-                            basis_bps=basis,
-                            funding_rate_1h=funding_1h,
-                            fee_paid=round(exit_cost, 2),
-                            pnl_realized=round(basis_pnl, 2),
-                        ))
-
-                        pos["active"] = False
-                        pos["notional"] = 0.0
-                    else:
-                        # Accrue 1h funding (short perp receives when rate > 0)
-                        funding_pnl = pos["notional"] * funding_1h
-                        pos["cum_funding"] += funding_pnl
-                        step_funding += funding_pnl
-
-                        # Rebalance delta every N epochs
-                        if epochs_held > 0 and epochs_held % self.rebalance_epochs == 0:
-                            reb_cost = pos["notional"] * 0.05 * (self.maker_fee * 2)
-                            pos["cum_fees"] += reb_cost
-                            step_fees += reb_cost
-                            pos["trade_count"] += 1
-
-                            trades.append(TradeRecord(
-                                id=uuid.uuid4().hex[:8],
-                                epoch=epoch,
-                                timestamp=ts,
-                                asset=asset,
-                                action="REBALANCE",
-                                side="LONG_SPOT_SHORT_PERP",
-                                notional_usd=round(pos["notional"] * 0.05, 2),
-                                mark_price=mark,
-                                basis_bps=basis,
-                                funding_rate_1h=funding_1h,
-                                fee_paid=round(reb_cost, 2),
-                            ))
-
-            # ── Portfolio mark-to-market ──────────────────────────────────
-            cum_funding += step_funding
-            cum_fees += step_fees
-            cum_slippage += step_slippage
-
-            # Unrealized position value (delta-neutral → ~0 directional P&L)
-            gross_exp = sum(
-                p["notional"] for p in positions.values() if p["active"]
-            ) * 2  # spot + perp legs
-            net_exp = 0.0  # delta-neutral
-
-            nav = (
-                self.req.initial_capital
-                + cum_funding
-                + sum(p["cum_basis_pnl"] for p in positions.values())
-                - cum_fees
-                - cum_slippage
+        # 2. Strategy Logic & Scoring
+        # Depending on mode, calculate the annualized spread we are targeting
+        if self.strategy_mode == "CROSS_VENUE_DISLOCATION":
+            # Long CEX (pays 8h, scaled to 1h for comparison) short HL (receives 1h)
+            # We want HL funding > CEX funding
+            df = df.with_columns(
+                spread_1h=pl.col("funding_rate_1h") - (pl.col("cex_funding_rate_8h") / 8.0)
+            )
+        elif self.strategy_mode == "INTRA_HL_CASH_AND_CARRY":
+            # Spot long, perp short. Receives HL 1h.
+            df = df.with_columns(
+                spread_1h=pl.col("funding_rate_1h")
+            )
+        else:
+            # Default fallback
+            df = df.with_columns(
+                spread_1h=pl.col("funding_rate_1h")
             )
 
-            if nav > hwm:
-                hwm = nav
-            dd_usd = max(0.0, hwm - nav)
-            dd_pct = (dd_usd / hwm) * 100 if hwm > 0 else 0.0
-            period_pnl = nav - prev_nav
-            period_ret = (period_pnl / prev_nav) * 100 if prev_nav > 0 else 0.0
-            prev_nav = nav
+        # Calculate Z-score of spread over a 24h rolling window (approx 24 epochs per asset)
+        # Using a simple moving average and std for the Z-score
+        df = df.with_columns(
+            spread_mean_24h=pl.col("spread_1h").rolling_mean(window_size=24, min_periods=1).over("asset"),
+            spread_std_24h=pl.col("spread_1h").rolling_std(window_size=24, min_periods=1).over("asset")
+        )
+        
+        df = df.with_columns(
+            z_score=pl.when(pl.col("spread_std_24h") > 1e-9)
+            .then((pl.col("spread_1h") - pl.col("spread_mean_24h")) / pl.col("spread_std_24h"))
+            .otherwise(0.0)
+        )
+
+        # 3. Target Weights (Rebalance Epochs)
+        # Rank assets cross-sectionally per epoch by z_score
+        df = df.with_columns(
+            rank=pl.col("z_score").rank(method="ordinal", descending=True).over("epoch")
+        )
+        
+        # Determine if epoch is a rebalance epoch
+        df = df.with_columns(
+            is_rebalance=(pl.col("epoch") % self.rebalance_epochs == 0)
+        )
+
+        # Allocate weight 1.0 / K to top K assets, 0 to others
+        # ONLY update on rebalance epochs, otherwise carry forward
+        df = df.with_columns(
+            target_weight=pl.when(pl.col("rank") <= self.top_k)
+            .then(1.0 / self.top_k)
+            .otherwise(0.0)
+        )
+        
+        # Forward fill weights from rebalance epochs
+        df = df.with_columns(
+            actual_weight=pl.when(pl.col("is_rebalance"))
+            .then(pl.col("target_weight"))
+            .otherwise(None)
+        )
+        df = df.with_columns(
+            actual_weight=pl.col("actual_weight").forward_fill().over("asset").fill_null(0.0)
+        )
+
+        # 4. Position & Turnover
+        total_alloc = self.req.initial_capital * self.req.max_leverage
+        
+        df = df.with_columns(
+            target_notional=pl.col("actual_weight") * total_alloc
+        )
+        
+        # Calculate change in notional (turnover)
+        df = df.with_columns(
+            prev_notional=pl.col("target_notional").shift(1).over("asset").fill_null(0.0)
+        )
+        df = df.with_columns(
+            turnover_notional=(pl.col("target_notional") - pl.col("prev_notional")).abs()
+        )
+
+        # 5. Execution Costs (Taker + Slippage applied on turnover on both legs: spot and perp)
+        # Assuming we trade spot and perp simultaneously, total turnover is 2x directional turnover
+        df = df.with_columns(
+            exec_fees_usd=pl.col("turnover_notional") * 2.0 * self.taker_fee,
+            exec_slippage_usd=pl.col("turnover_notional") * 2.0 * self.slippage
+        )
+
+        # 6. PnL Accrual
+        # Funding PnL is based on the held notional during the epoch
+        # (Assuming we receive spread_1h * notional)
+        df = df.with_columns(
+            funding_pnl=pl.col("target_notional") * pl.col("spread_1h")
+        )
+        
+        # Margin borrow cost for spot collateral (hourly)
+        borrow_cost_1h = self.margin_borrow_apr / 8760.0
+        df = df.with_columns(
+            margin_cost_usd=pl.col("target_notional") * borrow_cost_1h
+        )
+        
+        # Basis convergence PnL is simplified here since we focus on funding in these modes,
+        # but if we tracked precise entry/exit basis it would go here. We'll use mark price diffs.
+        df = df.with_columns(
+            prev_mark=pl.col("mark_price").shift(1).over("asset").fill_null(pl.col("mark_price"))
+        )
+        
+        # Delta neutral means mark price movements cancel out (spot vs perp), 
+        # so mark PnL is effectively 0, minus any slight basis drift we might model.
+        # We will assume pure delta neutral for now.
+        df = df.with_columns(
+            mark_pnl=pl.lit(0.0)
+        )
+        
+        df = df.with_columns(
+            net_pnl=pl.col("funding_pnl") + pl.col("mark_pnl") - pl.col("exec_fees_usd") - pl.col("exec_slippage_usd") - pl.col("margin_cost_usd")
+        )
+
+        # 7. Portfolio Aggregation (Group by epoch/timestamp)
+        portfolio = df.group_by(["epoch", "timestamp"]).agg(
+            pl.col("target_notional").sum().alias("gross_exposure"),
+            pl.col("funding_pnl").sum().alias("step_funding"),
+            pl.col("exec_fees_usd").sum().alias("step_fees"),
+            pl.col("exec_slippage_usd").sum().alias("step_slippage"),
+            pl.col("margin_cost_usd").sum().alias("step_margin"),
+            pl.col("net_pnl").sum().alias("step_net_pnl"),
+        ).sort("epoch")
+
+        # Cumulative sums for portfolio
+        portfolio = portfolio.with_columns(
+            cum_funding=pl.col("step_funding").cum_sum(),
+            cum_fees=pl.col("step_fees").cum_sum(),
+            cum_slippage=pl.col("step_slippage").cum_sum(),
+            cum_margin=pl.col("step_margin").cum_sum(),
+            cum_net_pnl=pl.col("step_net_pnl").cum_sum(),
+        )
+
+        # NAV calculations
+        portfolio = portfolio.with_columns(
+            nav=self.req.initial_capital + pl.col("cum_net_pnl")
+        )
+        
+        # High Water Mark and Drawdown
+        portfolio = portfolio.with_columns(
+            hwm=pl.col("nav").cum_max()
+        )
+        portfolio = portfolio.with_columns(
+            dd_pct=pl.when(pl.col("hwm") > 0)
+            .then((pl.col("hwm") - pl.col("nav")) / pl.col("hwm") * 100.0)
+            .otherwise(0.0)
+        )
+        
+        # Returns
+        portfolio = portfolio.with_columns(
+            prev_nav=pl.col("nav").shift(1).fill_null(self.req.initial_capital)
+        )
+        portfolio = portfolio.with_columns(
+            period_return_pct=pl.when(pl.col("prev_nav") > 0)
+            .then((pl.col("nav") - pl.col("prev_nav")) / pl.col("prev_nav") * 100.0)
+            .otherwise(0.0)
+        )
+
+        # Generate output structures
+        equity_curve: list[EquitySnapshot] = []
+        for row in portfolio.iter_rows(named=True):
+            nav = float(row["nav"])
+            # Annualized gross/net approximations based on cumulative values
+            epochs = row["epoch"] + 1
+            years = max(epochs / 8760.0, 0.0001)
+            
+            gross_pnl = float(row["cum_funding"])
+            net_pnl = float(row["cum_net_pnl"])
+            
+            gross_apr = (gross_pnl / self.req.initial_capital) / years * 100.0
+            net_apr = (net_pnl / self.req.initial_capital) / years * 100.0
 
             equity_curve.append(EquitySnapshot(
-                epoch=epoch,
-                timestamp=ts,
-                nav=round(nav, 2),
-                gross_exposure=round(gross_exp, 2),
-                net_exposure=round(net_exp, 2),
-                cash=round(cash, 2),
-                cumulative_funding=round(cum_funding, 2),
-                cumulative_fees=round(cum_fees, 2),
-                cumulative_slippage=round(cum_slippage, 2),
-                drawdown_usd=round(dd_usd, 2),
-                drawdown_pct=round(dd_pct, 2),
-                period_pnl=round(period_pnl, 2),
-                period_return_pct=round(period_ret, 4),
+                epoch=row["epoch"],
+                timestamp=row["timestamp"],
+                nav=nav,
+                cash=nav,  # Simplify cash=nav for this model
+                spot_value=float(row["gross_exposure"] / 2.0),
+                perp_value=float(row["gross_exposure"] / 2.0),
+                cumulative_funding_received=float(row["cum_funding"]),
+                cumulative_fees_paid=float(row["cum_fees"]) + float(row["cum_margin"]), # aggregate costs
+                cumulative_slippage_cost=float(row["cum_slippage"]),
+                gross_apr=gross_apr,
+                net_apr=net_apr,
+                drawdown_pct=float(row["dd_pct"]),
+                period_pnl=float(row["step_net_pnl"]),
+                period_return_pct=float(row["period_return_pct"]),
             ))
 
-        # ── Asset attribution ────────────────────────────────────────────
+        # 8. Trades Generation
+        # For performance, only output trades where turnover > 0
+        trades_df = df.filter(pl.col("turnover_notional") > 1e-2)
+        trades: list[TradeRecord] = []
+        for row in trades_df.iter_rows(named=True):
+            trades.append(TradeRecord(
+                id=uuid.uuid4().hex[:8],
+                epoch=row["epoch"],
+                timestamp=row["timestamp"],
+                asset=row["asset"],
+                action="REBALANCE",
+                side="LONG_SPOT_SHORT_PERP",
+                notional_usd=float(row["turnover_notional"]),
+                mark_price=float(row["mark_price"]),
+                basis_bps=float(row["basis_bps"]),
+                funding_rate_1h=float(row["funding_rate_1h"]),
+                fee_paid=float(row["exec_fees_usd"] + row["exec_slippage_usd"])
+            ))
+
+        # 9. Asset Attribution
+        attr_df = df.group_by("asset").agg(
+            pl.col("target_notional").mean().alias("allocated_notional"),
+            pl.col("funding_pnl").sum().alias("funding_earned"),
+            pl.col("mark_pnl").sum().alias("basis_pnl"),
+            pl.col("exec_fees_usd").sum().alias("fees_paid"),
+            pl.col("net_pnl").sum().alias("net_pnl"),
+            (pl.col("turnover_notional") > 1e-2).sum().alias("trade_count")
+        )
+        
         attribution: list[AssetAttribution] = []
-        for asset in self.req.assets:
-            p = positions[asset]
+        for row in attr_df.iter_rows(named=True):
             attribution.append(AssetAttribution(
-                asset=asset,
-                allocated_notional=round(alloc_per_asset, 2),
-                funding_earned=round(p["cum_funding"], 2),
-                basis_pnl=round(p["cum_basis_pnl"], 2),
-                fees_paid=round(p["cum_fees"], 2),
-                net_pnl=round(
-                    p["cum_funding"] + p["cum_basis_pnl"] - p["cum_fees"], 2,
-                ),
-                trade_count=p["trade_count"],
+                asset=row["asset"],
+                allocated_notional=float(row["allocated_notional"]),
+                funding_earned=float(row["funding_earned"]),
+                basis_pnl=float(row["basis_pnl"]),
+                fees_paid=float(row["fees_paid"]),
+                net_pnl=float(row["net_pnl"]),
+                trade_count=row["trade_count"],
             ))
 
         return equity_curve, trades, attribution

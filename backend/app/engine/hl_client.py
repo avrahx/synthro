@@ -253,6 +253,10 @@ class HyperliquidClient:
             # Basis spread derived from funding pressure
             basis_bps = funding * 10_000 * 0.6 + np.random.normal(0, 2.5, n_steps)
 
+            # CEX 8h funding baselines
+            cex_8h = CEX_FUNDING_BASELINES_8H.get(asset, 0.0003)
+            cex_8h_noised = cex_8h + np.random.normal(0, cex_8h * 0.15, n_steps)
+
             for i in range(n_steps):
                 ts = start_dt + timedelta(hours=i * interval_hours)
                 records.append({
@@ -262,6 +266,7 @@ class HyperliquidClient:
                     "mark_price": round(float(prices[i]), 4 if prices[i] < 10 else 2),
                     "funding_rate_1h": round(float(funding[i]), 8),
                     "funding_annualized_pct": round(float(funding[i] * 8760 * 100), 2),
+                    "cex_funding_rate_8h": round(float(cex_8h_noised[i]), 8),
                     "basis_bps": round(float(basis_bps[i]), 2),
                     "interval_hours": interval_hours,
                 })

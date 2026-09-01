@@ -23,16 +23,20 @@ class BacktestRequest(BaseModel):
     )
     start_date: str = Field(default="2024-06-01", description="Backtest start YYYY-MM-DD")
     end_date: str = Field(default="2025-01-01", description="Backtest end YYYY-MM-DD")
-    initial_capital: float = Field(default=100_000.0, ge=1_000.0)
-    taker_fee_bps: float = Field(default=2.5, ge=0.0, description="HL taker fee in bps")
+    initial_capital: float = Field(default=10_000.0, ge=1_000.0)
+    taker_fee_bps: float = Field(default=3.5, ge=0.0, description="HL taker fee in bps")
     maker_fee_bps: float = Field(default=0.2, ge=0.0, description="HL maker rebate-adjusted bps")
-    slippage_bps: float = Field(default=1.0, ge=0.0, description="Execution slippage bps")
-    entry_threshold_bps: float = Field(default=6.0, description="Min basis spread to enter")
-    exit_threshold_bps: float = Field(default=-1.0, description="Basis spread to unwind")
+    slippage_bps: float = Field(default=2.0, ge=0.0, description="Execution slippage bps")
+    
+    rebalance_freq_hours: int = Field(default=3, ge=1, description="Hours between forced rebalances")
+    margin_borrow_apr: float = Field(default=0.05, ge=0.0, description="Annualized borrow cost for spot collateral")
+    strategy_mode: Literal["INTRA_HL_CASH_AND_CARRY", "CROSS_VENUE_DISLOCATION", "VOLATILITY_ADJUSTED_HARVEST"] = Field(
+        default="CROSS_VENUE_DISLOCATION"
+    )
     max_leverage: float = Field(default=3.0, ge=1.0, le=20.0)
-    rebalance_epochs: int = Field(default=3, ge=1, description="Hours between forced rebalances")
+    
     vault_mode: bool = Field(default=True, description="Simulate as Hyperliquid User Vault")
-    leader_stake_pct: float = Field(default=5.0, ge=1.0, le=100.0)
+    leader_stake_pct: float = Field(default=5.0, ge=5.0, le=100.0, description="Leader stake min 5%")
     hwm_fee_pct: float = Field(default=10.0, ge=0.0, le=50.0)
 
 
@@ -57,13 +61,14 @@ class EquitySnapshot(BaseModel):
     epoch: int
     timestamp: str
     nav: float
-    gross_exposure: float
-    net_exposure: float
     cash: float
-    cumulative_funding: float
-    cumulative_fees: float
-    cumulative_slippage: float
-    drawdown_usd: float
+    spot_value: float
+    perp_value: float
+    cumulative_funding_received: float
+    cumulative_fees_paid: float
+    cumulative_slippage_cost: float
+    gross_apr: float
+    net_apr: float
     drawdown_pct: float
     period_pnl: float = 0.0
     period_return_pct: float = 0.0
@@ -72,20 +77,30 @@ class EquitySnapshot(BaseModel):
 class SummaryMetrics(BaseModel):
     """Aggregate risk-adjusted performance statistics."""
     total_return_pct: float
+    cagr: float
     annualized_return_pct: float
     sharpe_ratio: float
     sortino_ratio: float
-    max_drawdown_pct: float
     calmar_ratio: float
+    max_drawdown_pct: float
+    longest_underwater_hours: int
+    ulcer_index: float
+    omega_ratio: float
+    
     win_rate_pct: float
     profit_factor: float
     total_trades: int
+    
+    # Cost Bridge Breakdown
+    gross_yield_usd: float
     total_funding_usd: float
     total_fees_usd: float
+    total_slippage_usd: float
+    margin_borrow_cost_usd: float
     net_profit_usd: float
+    
     final_nav: float
     initial_capital: float
-    avg_epoch_return_bps: float
 
 
 class AssetAttribution(BaseModel):
@@ -150,6 +165,12 @@ class VaultDepositor(BaseModel):
     pnl_pct: float
 
 
+class SharePriceHistory(BaseModel):
+    timestamp: str
+    share_price: float
+    hwm: float
+
+
 class VaultStats(BaseModel):
     """Hyperliquid-native User Vault KPIs."""
     vault_name: str
@@ -162,8 +183,12 @@ class VaultStats(BaseModel):
     leader_stake_pct: float
     hwm_fee_pct: float
     accrued_performance_fee_usd: float
+    fee_drag_bps: float
+    leader_pnl: float
+    depositor_net_pnl: float
     total_depositors: int
     depositors: list[VaultDepositor]
+    share_price_history: list[SharePriceHistory]
     inception_date: str
     last_epoch: int
     last_updated: str

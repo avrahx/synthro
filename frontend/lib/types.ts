@@ -8,10 +8,10 @@ export interface BacktestRequest {
   taker_fee_bps: number;
   maker_fee_bps: number;
   slippage_bps: number;
-  entry_threshold_bps: number;
-  exit_threshold_bps: number;
+  rebalance_freq_hours: number;
+  margin_borrow_apr: number;
+  strategy_mode: "INTRA_HL_CASH_AND_CARRY" | "CROSS_VENUE_DISLOCATION" | "VOLATILITY_ADJUSTED_HARVEST";
   max_leverage: number;
-  rebalance_epochs: number;
   vault_mode: boolean;
   leader_stake_pct: number;
   hwm_fee_pct: number;
@@ -36,13 +36,14 @@ export interface EquitySnapshot {
   epoch: number;
   timestamp: string;
   nav: number;
-  gross_exposure: number;
-  net_exposure: number;
   cash: number;
-  cumulative_funding: number;
-  cumulative_fees: number;
-  cumulative_slippage: number;
-  drawdown_usd: number;
+  spot_value: number;
+  perp_value: number;
+  cumulative_funding_received: number;
+  cumulative_fees_paid: number;
+  cumulative_slippage_cost: number;
+  gross_apr: number;
+  net_apr: number;
   drawdown_pct: number;
   period_pnl: number;
   period_return_pct: number;
@@ -50,20 +51,29 @@ export interface EquitySnapshot {
 
 export interface SummaryMetrics {
   total_return_pct: number;
+  cagr: number;
   annualized_return_pct: number;
   sharpe_ratio: number;
   sortino_ratio: number;
-  max_drawdown_pct: number;
   calmar_ratio: number;
+  max_drawdown_pct: number;
+  longest_underwater_hours: number;
+  ulcer_index: number;
+  omega_ratio: number;
+  
   win_rate_pct: number;
   profit_factor: number;
   total_trades: number;
+  
+  gross_yield_usd: number;
   total_funding_usd: number;
   total_fees_usd: number;
+  total_slippage_usd: number;
+  margin_borrow_cost_usd: number;
   net_profit_usd: number;
+  
   final_nav: number;
   initial_capital: number;
-  avg_epoch_return_bps: number;
 }
 
 export interface AssetAttribution {
@@ -115,6 +125,12 @@ export interface VaultDepositor {
   pnl_pct: number;
 }
 
+export interface SharePriceHistory {
+  timestamp: string;
+  share_price: number;
+  hwm: number;
+}
+
 export interface VaultStats {
   vault_name: string;
   leader_address: string;
@@ -126,8 +142,12 @@ export interface VaultStats {
   leader_stake_pct: number;
   hwm_fee_pct: number;
   accrued_performance_fee_usd: number;
+  fee_drag_bps: number;
+  leader_pnl: number;
+  depositor_net_pnl: number;
   total_depositors: number;
   depositors: VaultDepositor[];
+  share_price_history: SharePriceHistory[];
   inception_date: string;
   last_epoch: number;
   last_updated: string;

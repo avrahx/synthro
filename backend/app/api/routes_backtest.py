@@ -5,13 +5,16 @@ POST /api/backtest/run → Execute vectorized basis + funding backtest.
 """
 
 from fastapi import APIRouter, HTTPException
+import traceback
+import logging
 
 from app.models.schemas import BacktestRequest, BacktestResponse
 from app.engine.hl_client import HyperliquidClient
-from app.engine.basis_engine import BasisEngine
-from app.engine.vault_model import VaultModel
+from app.engine.basis_engine import BasisBacktestEngine
+from app.engine.vault_model import HyperliquidVaultSimulator
 from app.engine.metrics import MetricsCalculator
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/backtest", tags=["Backtest Engine"])
 
 hl_client = HyperliquidClient()
@@ -33,21 +36,22 @@ async def run_backtest(request: BacktestRequest):
         )
 
         # 2. Run vectorized basis engine
-        engine = BasisEngine(request)
+        engine = BasisBacktestEngine(request)
         equity_curve, trades, attribution = engine.run(raw_data)
 
-        # 3. Compute summary metrics
-        summary = MetricsCalculator.compute(request, equity_curve, trades)
-
-        # 4. If vault mode, apply HWM fees to final NAV
+        # 3. If vault mode, apply HWM fees
         if request.vault_mode and equity_curve:
-            vault = VaultModel(request)
+            vault = HyperliquidVaultSimulator(request)
             for snap in equity_curve:
-                vault.apply_epoch_pnl(snap.nav)
-            # Adjust final NAV for accrued fees
-            summary.final_nav = round(
-                summary.final_nav - vault.accrued_fees, 2
-            )
+                vault.apply_epoch_pnl(snap.timestamp, snap.nav)
+            
+            # Adjust final NAV in the last snapshot to reflect fee extraction
+            equity_curve[-1].nav -= vault.accrued_fees
+            # Calculate vault stats (discarded here, but could be added to response if schema updated)
+            _ = vault.get_stats(equity_curve)
+
+        # 4. Compute summary metrics based on final curve
+        summary = MetricsCalculator.compute(request, equity_curve, trades)
 
         return BacktestResponse(
             request=request,
@@ -58,6 +62,7 @@ async def run_backtest(request: BacktestRequest):
         )
 
     except Exception as e:
+        logger.error(f"Backtest engine error: {str(e)}\n{traceback.format_exc()}")
         raise HTTPException(
             status_code=500,
             detail=f"Backtest engine error: {str(e)}",

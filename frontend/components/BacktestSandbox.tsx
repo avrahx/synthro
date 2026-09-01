@@ -17,13 +17,13 @@ export const BacktestSandbox: React.FC<Props> = ({ onRun, isRunning }) => {
     start_date: "2024-06-01",
     end_date: "2025-01-01",
     initial_capital: 100000,
-    taker_fee_bps: 2.5,
+    taker_fee_bps: 3.5,
     maker_fee_bps: 0.2,
-    slippage_bps: 1.0,
-    entry_threshold_bps: 6.0,
-    exit_threshold_bps: -1.0,
+    slippage_bps: 2.0,
+    rebalance_freq_hours: 3,
+    margin_borrow_apr: 0.05,
+    strategy_mode: "CROSS_VENUE_DISLOCATION",
     max_leverage: 3.0,
-    rebalance_epochs: 3,
     vault_mode: true,
     leader_stake_pct: 5.0,
     hwm_fee_pct: 10.0,
@@ -95,22 +95,35 @@ export const BacktestSandbox: React.FC<Props> = ({ onRun, isRunning }) => {
       </div>
 
       {showAdvanced && (
-        <div className="p-4 rounded-lg bg-bg-elevated/50 border border-border-subtle grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 font-mono text-xs">
-          {([
-            ["Taker Fee (BPS)", "taker_fee_bps", 0.5],
-            ["Maker Fee (BPS)", "maker_fee_bps", 0.1],
-            ["Slippage (BPS)", "slippage_bps", 0.5],
-            ["Entry Thresh (BPS)", "entry_threshold_bps", 1],
-            ["Exit Thresh (BPS)", "exit_threshold_bps", 1],
-            ["Rebalance Epochs", "rebalance_epochs", 1],
-          ] as [string, keyof BacktestRequest, number][]).map(([lbl, key, step]) => (
-            <div key={key}>
-              <label className="text-[10px] text-gray-500 uppercase block mb-1">{lbl}</label>
-              <input type="number" step={step} value={params[key] as number}
-                onChange={(e) => setParams({ ...params, [key]: +e.target.value || 0 })}
-                className="w-full px-2 py-1 rounded bg-bg border border-border-subtle text-gray-200 font-mono text-xs" />
+        <div className="p-4 rounded-lg bg-bg-elevated/50 border border-border-subtle space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 font-mono text-xs">
+            {([
+              ["Taker Fee (BPS)", "taker_fee_bps", 0.5],
+              ["Maker Fee (BPS)", "maker_fee_bps", 0.1],
+              ["Slippage (BPS)", "slippage_bps", 0.5],
+              ["Rebalance (Hrs)", "rebalance_freq_hours", 1],
+              ["Borrow APR (0.05=5%)", "margin_borrow_apr", 0.01],
+            ] as [string, keyof BacktestRequest, number][]).map(([lbl, key, step]) => (
+              <div key={key}>
+                <label className="text-[10px] text-gray-500 uppercase block mb-1">{lbl}</label>
+                <input type="number" step={step} value={params[key] as number}
+                  onChange={(e) => setParams({ ...params, [key]: +e.target.value || 0 })}
+                  className="w-full px-2 py-1 rounded bg-bg border border-border-subtle text-gray-200 font-mono text-xs focus:border-hl-cyan focus:outline-none" />
+              </div>
+            ))}
+            <div>
+              <label className="text-[10px] text-gray-500 uppercase block mb-1">Strategy Mode</label>
+              <select 
+                value={params.strategy_mode}
+                onChange={(e) => setParams({ ...params, strategy_mode: e.target.value as any })}
+                className="w-full px-2 py-1 rounded bg-bg border border-border-subtle text-gray-200 font-mono text-[10px] focus:border-hl-cyan focus:outline-none"
+              >
+                <option value="INTRA_HL_CASH_AND_CARRY">Intra-HL Cash & Carry</option>
+                <option value="CROSS_VENUE_DISLOCATION">Cross-Venue Dislocation</option>
+                <option value="VOLATILITY_ADJUSTED_HARVEST">Volatility-Adjusted Harvest</option>
+              </select>
             </div>
-          ))}
+          </div>
         </div>
       )}
 
