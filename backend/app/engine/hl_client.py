@@ -112,19 +112,38 @@ class HyperliquidClient:
         target_assets = assets or list(ASSET_CONFIGS.keys())
 
         # Try live API first
-        meta = await self._post("/info", {"type": "metaAndAssetCtxs"})
+        results = await asyncio.gather(
+            self._post("/info", {"type": "metaAndAssetCtxs"}),
+            self._post("/info", {"type": "spotMetaAndAssetCtxs"}),
+            return_exceptions=True
+        )
+        meta = results[0] if not isinstance(results[0], Exception) else None
+        spot_meta = results[1] if not isinstance(results[1], Exception) else None
+
         if meta and isinstance(meta, list) and len(meta) >= 2:
-            return self._parse_live_funding(meta, target_assets)
+            return self._parse_live_funding(meta, spot_meta, target_assets)
 
         # Fallback: high-fidelity mock
         return self._generate_mock_funding(target_assets)
 
     def _parse_live_funding(
-        self, meta: list, target_assets: list[str],
+        self, meta: list, spot_meta: list | None, target_assets: list[str],
     ) -> list[dict[str, Any]]:
         """Parse metaAndAssetCtxs response into funding rows."""
         universe_meta = meta[0].get("universe", [])
         asset_ctxs = meta[1] if len(meta) > 1 else []
+
+        # Parse spot meta if available
+        spot_prices = {}
+        if spot_meta and isinstance(spot_meta, list) and len(spot_meta) > 1:
+            spot_universe = spot_meta[0].get("universe", [])
+            spot_ctxs = spot_meta[1]
+            for s_idx, s_item in enumerate(spot_universe):
+                if s_idx < len(spot_ctxs):
+                    # Usually HL spot assets are named like '@123' internally but mapped to 'PURR'
+                    # We'll just grab the token name
+                    token = s_item.get("name", "")
+                    spot_prices[token] = float(spot_ctxs[s_idx].get("markPx", 0.0))
 
         name_map = {item["name"]: idx for idx, item in enumerate(universe_meta)}
         results = []
@@ -137,6 +156,8 @@ class HyperliquidClient:
             funding_1h = float(ctx.get("funding", 0.0))
             mark_price = float(ctx.get("markPx", 0.0))
             oi_usd = float(ctx.get("openInterest", 0.0)) * mark_price
+            
+            spot_price = spot_prices.get(asset, mark_price)
 
             cex_8h = CEX_FUNDING_BASELINES_8H.get(asset, 0.0003)
             hl_ann = funding_1h * 8760 * 100

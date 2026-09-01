@@ -61,6 +61,7 @@ class EquitySnapshot(BaseModel):
     epoch: int
     timestamp: str
     nav: float
+    benchmark_nav: float
     cash: float
     spot_value: float
     perp_value: float

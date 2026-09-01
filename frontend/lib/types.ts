@@ -36,6 +36,7 @@ export interface EquitySnapshot {
   epoch: number;
   timestamp: string;
   nav: number;
+  benchmark_nav: number;
   cash: number;
   spot_value: number;
   perp_value: number;

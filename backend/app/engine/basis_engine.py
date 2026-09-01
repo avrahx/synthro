@@ -156,6 +156,13 @@ class BasisBacktestEngine:
             prev_mark=pl.col("mark_price").shift(1).over("asset").fill_null(pl.col("mark_price"))
         )
         
+        # Calculate individual asset return for this epoch
+        df = df.with_columns(
+            asset_return=pl.when(pl.col("prev_mark") > 0)
+            .then(pl.col("mark_price") / pl.col("prev_mark") - 1.0)
+            .otherwise(0.0)
+        )
+        
         # Delta neutral means mark price movements cancel out (spot vs perp), 
         # so mark PnL is effectively 0, minus any slight basis drift we might model.
         # We will assume pure delta neutral for now.
@@ -175,6 +182,7 @@ class BasisBacktestEngine:
             pl.col("exec_slippage_usd").sum().alias("step_slippage"),
             pl.col("margin_cost_usd").sum().alias("step_margin"),
             pl.col("net_pnl").sum().alias("step_net_pnl"),
+            pl.col("asset_return").mean().alias("avg_asset_return"),
         ).sort("epoch")
 
         # Cumulative sums for portfolio
@@ -189,6 +197,14 @@ class BasisBacktestEngine:
         # NAV calculations
         portfolio = portfolio.with_columns(
             nav=self.req.initial_capital + pl.col("cum_net_pnl")
+        )
+        
+        # Buy & Hold Benchmark NAV
+        portfolio = portfolio.with_columns(
+            benchmark_multiplier=(1.0 + pl.col("avg_asset_return")).cum_prod()
+        )
+        portfolio = portfolio.with_columns(
+            benchmark_nav=self.req.initial_capital * pl.col("benchmark_multiplier")
         )
         
         # High Water Mark and Drawdown
@@ -229,6 +245,7 @@ class BasisBacktestEngine:
                 epoch=row["epoch"],
                 timestamp=row["timestamp"],
                 nav=nav,
+                benchmark_nav=float(row["benchmark_nav"]),
                 cash=nav,  # Simplify cash=nav for this model
                 spot_value=float(row["gross_exposure"] / 2.0),
                 perp_value=float(row["gross_exposure"] / 2.0),
