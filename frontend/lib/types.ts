@@ -153,3 +153,37 @@ export interface VaultStats {
   last_epoch: number;
   last_updated: string;
 }
+
+// ── Execution Schemas ────────────────────────────────────────────────────────
+
+export interface OrderRequest {
+  asset: string;
+  is_buy: boolean;
+  limit_px: number;
+  sz: number;
+  reduce_only?: boolean;
+}
+
+export interface OrderResponse {
+  status: string;
+  filled_sz: number;
+  avg_px: number;
+  message: string;
+  raw_payload: any;
+}
+
+export interface RebalanceRequest {
+  spot_asset: string;
+  perp_asset: string;
+  spot_sz: number;
+  perp_sz: number;
+  spot_px: number;
+  perp_px: number;
+}
+
+export interface ExecutionStatus {
+  spot_status: string;
+  perp_status: string;
+  details: string;
+  raw_payloads: any[];
+}

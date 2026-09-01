@@ -13,6 +13,7 @@ from app.config import settings
 from app.api.routes_market import router as market_router
 from app.api.routes_backtest import router as backtest_router
 from app.api.routes_vault import router as vault_router
+from app.api.routes_execution import router as execution_router
 from app.engine.hl_client import HyperliquidClient
 
 hl_client = HyperliquidClient()
@@ -51,6 +52,7 @@ app.add_middleware(
 app.include_router(market_router)
 app.include_router(backtest_router)
 app.include_router(vault_router)
+app.include_router(execution_router)
 
 
 # ── Health Check ─────────────────────────────────────────────────────────────

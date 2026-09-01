@@ -193,3 +193,33 @@ class VaultStats(BaseModel):
     inception_date: str
     last_epoch: int
     last_updated: str
+
+# ── Execution Schemas ────────────────────────────────────────────────────────
+
+class OrderRequest(BaseModel):
+    asset: str
+    is_buy: bool
+    limit_px: float
+    sz: float
+    reduce_only: bool = False
+
+class OrderResponse(BaseModel):
+    status: str
+    filled_sz: float
+    avg_px: float
+    message: str
+    raw_payload: dict[str, Any] = Field(default_factory=dict)
+
+class RebalanceRequest(BaseModel):
+    spot_asset: str
+    perp_asset: str
+    spot_sz: float
+    perp_sz: float
+    spot_px: float
+    perp_px: float
+
+class ExecutionStatus(BaseModel):
+    spot_status: str
+    perp_status: str
+    details: str
+    raw_payloads: list[dict[str, Any]] = Field(default_factory=list)

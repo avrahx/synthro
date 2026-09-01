@@ -7,6 +7,7 @@ import { LiveFundingMatrix } from "../components/LiveFundingMatrix";
 import { BacktestSandbox } from "../components/BacktestSandbox";
 import { EquityChart } from "../components/EquityChart";
 import { VaultTearSheet } from "../components/VaultTearSheet";
+import { ExecutionTerminal } from "../components/ExecutionTerminal";
 import { BacktestRequest, BacktestResponse } from "../lib/types";
 import { runBacktest } from "../lib/api";
 import {
@@ -17,9 +18,10 @@ import {
   BarChart3,
   Sparkles,
   Vault,
+  Terminal,
 } from "lucide-react";
 
-type Tab = "live" | "backtest" | "vault";
+type Tab = "live" | "backtest" | "vault" | "execution";
 
 export default function Dashboard() {
   const [tab, setTab] = useState<Tab>("live");
@@ -95,6 +97,7 @@ export default function Dashboard() {
             { id: "live" as Tab, label: "LIVE MARKET", icon: Sparkles },
             { id: "backtest" as Tab, label: "BACKTEST ENGINE", icon: BarChart3 },
             { id: "vault" as Tab, label: "VAULT SIMULATOR", icon: Vault },
+            { id: "execution" as Tab, label: "EXECUTION TERMINAL", icon: Terminal },
           ]).map((t) => (
             <button key={t.id} onClick={() => setTab(t.id)}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-md transition-all ${
@@ -209,6 +212,9 @@ export default function Dashboard() {
 
         {/* Vault Tab */}
         {tab === "vault" && <VaultTearSheet />}
+        
+        {/* Execution Tab */}
+        {tab === "execution" && <ExecutionTerminal />}
       </main>
     </>
   );
