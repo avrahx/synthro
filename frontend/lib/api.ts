@@ -5,8 +5,10 @@ import {
   VaultStats,
   OrderRequest,
   OrderResponse,
-  RebalanceRequest,
-  ExecutionStatus
+  BasisTradeRequest,
+  ExecutionStatus,
+  CancelAllResponse,
+  SystemStatusResponse
 } from "./types";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -51,22 +53,31 @@ export async function submitOrder(req: OrderRequest): Promise<OrderResponse> {
   return res.json();
 }
 
-export async function executeRebalance(req: RebalanceRequest): Promise<ExecutionStatus> {
-  const res = await fetch(`${API}/api/execution/rebalance`, {
+export async function executeBasisTrade(req: BasisTradeRequest): Promise<ExecutionStatus> {
+  const res = await fetch(`${API}/api/execution/basis-trade`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(req),
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.detail || "Rebalance failed");
+    throw new Error(data.detail || "Basis trade failed");
   }
   return res.json();
 }
 
-export async function fetchOpenOrders(): Promise<any> {
-  const res = await fetch(`${API}/api/execution/open-orders`);
-  if (!res.ok) throw new Error("Failed to fetch open orders");
+export async function cancelAllOrders(): Promise<CancelAllResponse> {
+  const res = await fetch(`${API}/api/execution/cancel-all`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" }
+  });
+  if (!res.ok) throw new Error("Cancel all failed");
+  return res.json();
+}
+
+export async function fetchSystemStatus(): Promise<SystemStatusResponse> {
+  const res = await fetch(`${API}/api/execution/status`);
+  if (!res.ok) throw new Error("Failed to fetch system status");
   return res.json();
 }
 

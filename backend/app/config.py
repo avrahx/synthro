@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     HL_NETWORK: Literal["testnet", "mainnet"] = "testnet"
     HL_MAINNET_API: str = "https://api.hyperliquid.xyz"
     HL_TESTNET_API: str = "https://api.hyperliquid-testnet.xyz"
+    
+    # ── Agent Wallet Execution ───────────────────────────────────────────
+    HYPERLIQUID_AGENT_PRIVATE_KEY: str | None = None
+    HYPERLIQUID_MASTER_ADDRESS: str | None = None
 
     # ── CORS ─────────────────────────────────────────────────────────────
     CORS_ORIGINS: list[str] = [

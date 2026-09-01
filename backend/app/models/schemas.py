@@ -210,16 +210,35 @@ class OrderResponse(BaseModel):
     message: str
     raw_payload: dict[str, Any] = Field(default_factory=dict)
 
-class RebalanceRequest(BaseModel):
+class BasisTradeRequest(BaseModel):
     spot_asset: str
     perp_asset: str
     spot_sz: float
     perp_sz: float
     spot_px: float
     perp_px: float
+    max_slippage_bps: float = 5.0
 
 class ExecutionStatus(BaseModel):
     spot_status: str
     perp_status: str
     details: str
     raw_payloads: list[dict[str, Any]] = Field(default_factory=list)
+
+class CancelAllResponse(BaseModel):
+    status: str
+    message: str
+
+class Position(BaseModel):
+    asset: str
+    net_delta: float
+    spot_sz: float
+    perp_sz: float
+    funding_pnl: float
+    margin_buffer: float
+
+class SystemStatusResponse(BaseModel):
+    agent_wallet: str
+    master_wallet: str
+    connection: str
+    positions: list[Position] = Field(default_factory=list)

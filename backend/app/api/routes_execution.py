@@ -7,14 +7,16 @@ GET /api/execution/open-orders -> Fetch open orders
 """
 
 from fastapi import APIRouter
-from app.models.schemas import OrderRequest, OrderResponse, RebalanceRequest, ExecutionStatus
+from app.models.schemas import OrderRequest, OrderResponse, BasisTradeRequest, ExecutionStatus, CancelAllResponse, SystemStatusResponse
 from app.engine.execution import ExecutionRouter
 import os
 
 router = APIRouter(prefix="/api/execution", tags=["Execution"])
 
-# Initialize with env private key if available, else simulation mode
-router_engine = ExecutionRouter(private_key=os.getenv("HL_PRIVATE_KEY"))
+router_engine = ExecutionRouter(
+    agent_private_key=os.getenv("HYPERLIQUID_AGENT_PRIVATE_KEY"),
+    master_address=os.getenv("HYPERLIQUID_MASTER_ADDRESS")
+)
 
 @router.post("/order", response_model=OrderResponse)
 async def submit_order(req: OrderRequest):
@@ -40,37 +42,42 @@ async def submit_order(req: OrderRequest):
         raw_payload=payload
     )
 
-@router.post("/rebalance", response_model=ExecutionStatus)
-async def submit_rebalance(req: RebalanceRequest):
+@router.post("/basis-trade", response_model=ExecutionStatus)
+async def submit_basis_trade(req: BasisTradeRequest):
     """
-    Triggers a dual-leg spot/perp delta-neutral execution.
+    Triggers a sequential dual-leg spot/perp delta-neutral execution.
     """
-    res = await router_engine.execute_rebalance(
+    res = await router_engine.basis_trade(
         spot_asset=req.spot_asset,
         perp_asset=req.perp_asset,
         spot_sz=req.spot_sz,
         perp_sz=req.perp_sz,
         spot_px=req.spot_px,
-        perp_px=req.perp_px
+        perp_px=req.perp_px,
+        max_slippage_bps=req.max_slippage_bps
     )
     
     spot_res = res.get("spot_leg", {})
     perp_res = res.get("perp_leg", {})
     
     return ExecutionStatus(
-        spot_status="filled" if isinstance(spot_res, dict) and spot_res.get("status") == "filled" else "error",
-        perp_status="filled" if isinstance(perp_res, dict) and perp_res.get("status") == "filled" else "error",
+        spot_status="filled" if isinstance(spot_res, dict) and spot_res.get("status") == "filled" else str(spot_res.get("status", "error")),
+        perp_status="filled" if isinstance(perp_res, dict) and perp_res.get("status") == "filled" else str(perp_res.get("status", "error")),
         details=str(res),
-        # Pass up both payloads for auditability
         raw_payloads=[
             spot_res.get("payload_logged", {}) if isinstance(spot_res, dict) else {},
             perp_res.get("payload_logged", {}) if isinstance(perp_res, dict) else {}
         ]
     )
 
-@router.get("/open-orders")
-async def get_open_orders():
-    """
-    Fetch active open orders for the agent wallet.
-    """
-    return {"orders": [], "status": "simulated"}
+@router.post("/cancel-all", response_model=CancelAllResponse)
+async def cancel_all():
+    """Emergency kill switch canceling all active orders."""
+    res = await router_engine.cancel_all()
+    return CancelAllResponse(**res)
+
+@router.get("/status", response_model=SystemStatusResponse)
+async def get_system_status():
+    """Return connection state, Agent Wallet, and active positions."""
+    res = await router_engine.get_status()
+    return SystemStatusResponse(**res)

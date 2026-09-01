@@ -23,13 +23,13 @@ class HyperliquidSigner:
         "verifyingContract": "0x0000000000000000000000000000000000000000"
     }
 
-    def __init__(self, private_key: str | None = None, is_mainnet: bool = False):
-        self.is_mainnet = is_mainnet
+    def __init__(self, agent_private_key: str | None = None, master_address: str | None = None):
+        # Phantom Agent spec strictly enforces chainId 1337 for L1 signing regardless of testnet/mainnet
         self.domain = self.DOMAIN.copy()
-        self.domain["chainId"] = 421614 if not is_mainnet else 42161
         
-        self.account = Account.from_key(private_key) if private_key else None
-        self.address = self.account.address if self.account else "0x0000000000000000000000000000000000000000"
+        self.account = Account.from_key(agent_private_key) if agent_private_key else None
+        self.agent_address = self.account.address if self.account else "0x0000000000000000000000000000000000000000"
+        self.master_address = master_address or self.agent_address
 
     def sign_order(self, asset: int, is_buy: bool, limit_px: str, sz: str, reduce_only: bool, cloid: str | None = None) -> dict[str, Any]:
         """
@@ -103,5 +103,6 @@ class HyperliquidSigner:
             "nonce": now_ms,
             "signature": signature,
             "typed_data": typed_data,
-            "address": self.address
+            "agent": self.agent_address,
+            "master": self.master_address
         }

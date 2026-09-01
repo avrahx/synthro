@@ -1,25 +1,43 @@
 "use client";
 
-import React, { useState } from "react";
-import { executeRebalance, submitOrder } from "../lib/api";
-import { Terminal, ShieldAlert, Activity, ChevronDown, ChevronRight, Zap } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { executeBasisTrade, cancelAllOrders, fetchSystemStatus } from "../lib/api";
+import { Terminal, ShieldAlert, Activity, ChevronDown, ChevronRight, Zap, RefreshCw } from "lucide-react";
+import { SystemStatusResponse } from "../lib/types";
 
 export const ExecutionTerminal = () => {
+  const [status, setStatus] = useState<SystemStatusResponse | null>(null);
   const [logs, setLogs] = useState<any[]>([]);
   const [isSimulating, setIsSimulating] = useState(false);
   const [expandedLog, setExpandedLog] = useState<number | null>(null);
+
+  const loadStatus = async () => {
+    try {
+      const res = await fetchSystemStatus();
+      setStatus(res);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    loadStatus();
+    const int = setInterval(loadStatus, 5000);
+    return () => clearInterval(int);
+  }, []);
 
   const handleTestRebalance = async () => {
     setIsSimulating(true);
     try {
       const start = performance.now();
-      const res = await executeRebalance({
+      const res = await executeBasisTrade({
         spot_asset: "BTC",
         perp_asset: "BTC",
         spot_sz: 0.1,
         perp_sz: 0.1,
         spot_px: 68000,
-        perp_px: 68050
+        perp_px: 68050,
+        max_slippage_bps: 5.0
       });
       const ms = (performance.now() - start).toFixed(0);
       
@@ -41,9 +59,20 @@ export const ExecutionTerminal = () => {
     setIsSimulating(false);
   };
 
-  const handleEmergencyFlatten = () => {
+  const handleEmergencyFlatten = async () => {
     if (confirm("Are you sure you want to cancel all orders and flatten delta?")) {
-      alert("Emergency Flatten triggered (Mock).");
+      try {
+        const res = await cancelAllOrders();
+        setLogs(prev => [{
+          id: Date.now(),
+          type: "EMERGENCY",
+          time: new Date().toLocaleTimeString(),
+          details: { raw_payloads: [{ action: { type: "cancelAll" }, response: res }] }
+        }, ...prev]);
+        loadStatus();
+      } catch (e: any) {
+        alert("Failed to cancel: " + e.message);
+      }
     }
   };
 
@@ -60,15 +89,21 @@ export const ExecutionTerminal = () => {
           <div>
             <div className="text-[10px] text-gray-500 font-mono uppercase">Agent Wallet Status</div>
             <div className="font-mono text-sm font-bold text-white flex items-center gap-2">
-              <span className="text-hl-cyan">0x0000...0000</span>
+              <span className="text-hl-cyan">{status ? status.agent_wallet.slice(0, 8) + "..." : "Loading..."}</span>
               <span className="px-2 py-0.5 rounded bg-bg-raised text-[10px] text-gray-400 border border-border-subtle">
-                SIMULATED (No PK)
+                {status ? status.connection : "..."}
               </span>
             </div>
           </div>
         </div>
         
         <div className="flex gap-2 w-full md:w-auto">
+          <button 
+            onClick={loadStatus}
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-bg-raised hover:bg-bg-elevated text-gray-400 border border-border-subtle rounded-lg transition-all"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
           <button 
             onClick={handleTestRebalance}
             disabled={isSimulating}
@@ -84,6 +119,51 @@ export const ExecutionTerminal = () => {
             <ShieldAlert className="w-4 h-4" />
             FLATTEN
           </button>
+        </div>
+      </div>
+
+      {/* Positions Table */}
+      <div className="glass rounded-xl overflow-hidden border border-border-subtle flex flex-col">
+        <div className="p-4 border-b border-border-subtle bg-bg-elevated/50 flex items-center gap-2">
+          <Activity className="w-4 h-4 text-gray-400" />
+          <h2 className="font-mono text-sm font-bold text-white">Active Positions</h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left font-mono text-xs">
+            <thead className="bg-[#0a0d14] text-gray-500 border-b border-border-subtle">
+              <tr>
+                <th className="px-4 py-3 font-normal">Asset</th>
+                <th className="px-4 py-3 font-normal text-right">Net Delta</th>
+                <th className="px-4 py-3 font-normal text-right">Spot Leg</th>
+                <th className="px-4 py-3 font-normal text-right">Perp Leg</th>
+                <th className="px-4 py-3 font-normal text-right">1h Funding PnL</th>
+                <th className="px-4 py-3 font-normal text-right">Margin Buffer</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border-subtle">
+              {status?.positions.map((p, i) => (
+                <tr key={i} className="hover:bg-bg-raised/50 transition-colors">
+                  <td className="px-4 py-3 font-bold text-white">{p.asset}</td>
+                  <td className="px-4 py-3 text-right">
+                    <span className={Math.abs(p.net_delta) < 0.01 ? "text-gray-400" : "text-hl-rose"}>
+                      {p.net_delta.toFixed(4)}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right text-hl-green">{p.spot_sz}</td>
+                  <td className="px-4 py-3 text-right text-hl-rose">{p.perp_sz}</td>
+                  <td className="px-4 py-3 text-right text-hl-cyan">+${p.funding_pnl.toFixed(2)}</td>
+                  <td className="px-4 py-3 text-right text-white">${p.margin_buffer.toFixed(2)}</td>
+                </tr>
+              ))}
+              {(!status || status.positions.length === 0) && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                    No active positions found on this Agent Wallet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 

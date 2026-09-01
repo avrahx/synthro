@@ -172,13 +172,14 @@ export interface OrderResponse {
   raw_payload: any;
 }
 
-export interface RebalanceRequest {
+export interface BasisTradeRequest {
   spot_asset: string;
   perp_asset: string;
   spot_sz: number;
   perp_sz: number;
   spot_px: number;
   perp_px: number;
+  max_slippage_bps?: number;
 }
 
 export interface ExecutionStatus {
@@ -186,4 +187,25 @@ export interface ExecutionStatus {
   perp_status: string;
   details: string;
   raw_payloads: any[];
+}
+
+export interface CancelAllResponse {
+  status: string;
+  message: string;
+}
+
+export interface Position {
+  asset: string;
+  net_delta: number;
+  spot_sz: number;
+  perp_sz: number;
+  funding_pnl: number;
+  margin_buffer: number;
+}
+
+export interface SystemStatusResponse {
+  agent_wallet: string;
+  master_wallet: string;
+  connection: string;
+  positions: Position[];
 }
