@@ -1,135 +1,89 @@
-<div align="center">
+# HyperVault Alpha (Synthro)
 
-# SYNTHRO
-
-### HyperVault Alpha Engine
-
-**Institutional quantitative framework for Hyperliquid L1**
-*Intra-L1 basis arbitrage · 1-hour funding harvesting · Native User Vault simulation*
-
-[![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![Next.js](https://img.shields.io/badge/Next.js-14-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org)
-[![Hyperliquid](https://img.shields.io/badge/Hyperliquid-L1-6366F1)](https://hyperliquid.xyz)
-
-</div>
+An institutional-grade quantitative framework designed for Hyperliquid L1. Synthro implements delta-neutral basis arbitrage, continuous 1-hour funding harvesting, and native User Vault simulation using a sub-millisecond vectorized backtesting engine and a secure, non-custodial execution layer.
 
 ---
 
-## Architecture
+## 🎯 Architecture Overview
 
-```
-synthro/
-├── backend/
-│   ├── app/
-│   │   ├── main.py                  # FastAPI entry, CORS, lifespan
-│   │   ├── config.py                # Pydantic BaseSettings (HL testnet/mainnet)
-│   │   ├── models/
-│   │   │   └── schemas.py           # Pydantic v2 domain schemas
-│   │   ├── engine/
-│   │   │   ├── hl_client.py         # Hyperliquid Info API + mock generator
-│   │   │   ├── basis_engine.py      # Polars vectorized basis & 1h funding engine
-│   │   │   ├── vault_model.py       # HL User Vault (5% leader / 10% HWM fee)
-│   │   │   └── metrics.py           # Sharpe, Sortino, Calmar, Max DD
-│   │   └── api/
-│   │       ├── routes_market.py     # GET  /api/market/funding
-│   │       ├── routes_backtest.py   # POST /api/backtest/run
-│   │       └── routes_vault.py      # GET  /api/vault/stats
-│   ├── requirements.txt
-│   └── Dockerfile
-├── frontend/
-│   ├── app/
-│   │   ├── layout.tsx               # Dark-themed root layout
-│   │   ├── page.tsx                 # Dashboard: Live / Backtest / Vault tabs
-│   │   └── globals.css              # Tailwind dark financial styling
-│   ├── components/
-│   │   ├── Navbar.tsx               # HL network badge + API status
-│   │   ├── MetricCards.tsx          # KPI cards (Yield, Sharpe, DD, NAV)
-│   │   ├── LiveFundingMatrix.tsx    # HL 1h vs CEX 8h real-time heatmap
-│   │   ├── BacktestSandbox.tsx      # Interactive strategy parameters
-│   │   ├── EquityChart.tsx          # NAV / Drawdown / Funding area charts
-│   │   └── VaultTearSheet.tsx       # HWM tracker + depositor breakdown
-│   ├── lib/
-│   │   ├── api.ts                   # Typed backend client
-│   │   └── types.ts                 # TypeScript ↔ Pydantic mirror types
-│   ├── package.json
-│   └── Dockerfile
-└── docker-compose.yml
-```
+HyperVault Alpha is divided into three core subsystems:
+
+### 1. The Quantitative Engine (`backend/app/engine/`)
+Built with Polars for high-performance vectorized calculations, the engine simulates multi-asset basis and funding strategies.
+- **Delta-Neutrality & Spread Z-Scoring:** Tracks the divergence between Hyperliquid perpetual 1-hour funding rates and simulated CEX 8-hour rates.
+- **Cost Bridge & Execution Drag:** Accounts for turnover-based taker fees (e.g., 3.5 bps), execution slippage (e.g., 2.0 bps), and margin borrowing costs.
+- **High-Water Mark (HWM):** Accurately models native Hyperliquid User Vault semantics, including the mandatory 5% leader stake and HWM-based 10% performance fees.
+
+### 2. Live Market Data & Execution Layer (`backend/app/api/`)
+A high-throughput FastAPI backend managing both ingestion and authenticated L1 execution.
+- **Live Ingestion:** Streams L1 metadata to track 1-hour funding rates, Open Interest, and Mark Prices.
+- **Sequential Execution Router:** Safely legs into basis trades (Spot Leg first, Perpetual Leg second) to prevent naked exposure. Uses explicit L1 circuit breakers and slippage thresholds.
+- **EIP-712 Phantom Agent Signer:** Implements Hyperliquid’s Phantom Agent standard (Chain ID 1337). The execution layer never requires the master wallet's private key, utilizing scoped `Agent Wallets` to securely sign and dispatch msgpack-encoded action payloads gaslessly to the L1 sequencer.
+
+### 3. Execution Terminal (`frontend/`)
+A React (Next.js) + Tailwind dashboard providing institutional oversight over the autonomous systems.
+- **Live Funding Matrix:** Visualizes the annualized yield differentials across perpetual assets.
+- **Equity Curve Analytics:** Interactive Recharts plotting the strategy NAV against benchmark yield.
+- **Live Position Management:** Polling architecture surfacing real-time positions with a global emergency kill switch.
 
 ---
 
-## Quantitative Methodology
+## 🚀 Quick Start
 
-### Hyperliquid-Native Advantages
+### Prerequisites
+- Docker & Docker Compose
+- Node.js (v20+) & Python (3.12+)
 
-| Feature | Hyperliquid L1 | Traditional CEXes |
-|---|---|---|
-| **Funding cadence** | **1-hour** settlement | 8-hour settlement |
-| **Taker fee** | ~2.5 bps | ~4–6 bps |
-| **Maker rebate** | ~0.2 bps | 0–2 bps |
-| **Settlement** | On-chain atomic | Off-chain custodial |
-| **Vault primitive** | Native L1 User Vaults | Third-party smart contracts |
+### Development
 
-### Strategy: Delta-Neutral Basis + Funding Harvest
-
-1. **Hourly Basis Scan**: Evaluate intra-L1 basis spreads and predicted 1h funding rates per asset
-2. **Entry**: Open delta-neutral position (long spot exposure + short perp) when basis exceeds entry threshold AND funding rate is positive
-3. **Funding Accrual**: Settle 1-hour funding payments (short perp receives when rate > 0)
-4. **Rebalance**: Correct delta drift every N epochs via maker-fee rebalance orders
-5. **Exit**: Unwind when basis compresses below exit threshold, funding inverts, or max hold period reached
-
-### User Vault Simulation
-
-- **Leader Stake**: 5% minimum first-loss capital contribution
-- **Performance Fee**: 10% of profits above High-Water Mark (HWM)
-- **Share-Price Accounting**: Depositor PnL tracked via minted share tokens
-- **HWM Reset**: Performance fee only accrues on new all-time-high NAV
-
----
-
-## Quick Start
-
-### Option 1: Docker Compose
-
-```bash
-docker compose up --build
-```
-
-- **Dashboard**: [http://localhost:3000](http://localhost:3000)
-- **API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
-- **Health**: [http://localhost:8000/health](http://localhost:8000/health)
-
-### Option 2: Local Development
-
-**Backend:**
+**1. Boot the Backend (FastAPI)**
 ```bash
 cd backend
-python -m venv .venv && .venv\Scripts\activate   # Windows
 pip install -r requirements.txt
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn app.main:app --reload
 ```
 
-**Frontend:**
+**2. Boot the Frontend (Next.js)**
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
+### Production via Docker
+
+A complete `docker-compose.yml` orchestrates the system.
+
+```bash
+docker-compose up --build -d
+```
+- **Backend API:** http://localhost:8000
+- **Frontend UI:** http://localhost:3000
+
 ---
 
-## API Endpoints
+## 🧪 Testing and Verification
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/health` | Service health + HL network status |
-| `GET` | `/api/market/funding` | Live HL 1h vs CEX 8h funding comparison |
-| `POST` | `/api/backtest/run` | Execute vectorized basis + funding backtest |
-| `GET` | `/api/vault/stats` | Simulated vault NAV, share price, depositor PnL |
+The system includes a comprehensive `pytest` suite ensuring quantitative accuracy and infrastructure stability.
+
+```bash
+cd backend
+pytest tests/ -v
+```
+
+### Key Invariants Tested
+- **Delta-Neutrality Invariant:** Ensures that spot price shocks do not result in mark-to-market PnL drag.
+- **HWM Performance Fee:** Asserts that leader performance fees are only minted when the NAV per share exceeds the historical peak.
+- **Phantom Agent Construction:** Validates Keccak256 action hashing and msgpack structure matching the official SDK.
 
 ---
 
-## License
+## 🔒 Security Posture & Non-Custodial Architecture
 
-MIT
+Synthro is designed with institutional fund safety in mind:
+1. **Agent Delegation:** The master private key should only be used once (externally) to authorize a session Agent Wallet. The backend `HYPERLIQUID_AGENT_PRIVATE_KEY` only possesses the right to sign L1 order actions.
+2. **No Withdrawal Authority:** The execution system strictly lacks withdrawal or transfer signatures.
+3. **Sequential Legging:** Spot purchases are aggressively verified via fill polling before short perpetuals are executed.
+
+---
+*Developed by the Synthro Quantitative Team.*
