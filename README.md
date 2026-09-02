@@ -4,7 +4,7 @@ An institutional-grade quantitative framework designed for Hyperliquid L1. Synth
 
 ---
 
-## 🎯 Architecture Overview
+##  Architecture Overview
 
 HyperVault Alpha is divided into three core subsystems:
 
@@ -28,7 +28,7 @@ A React (Next.js) + Tailwind dashboard providing institutional oversight over th
 
 ---
 
-## 🚀 Quick Start
+##  Quick Start
 
 ### Prerequisites
 - Docker & Docker Compose
@@ -62,7 +62,7 @@ docker-compose up --build -d
 
 ---
 
-## 🧪 Testing and Verification
+##  Testing and Verification
 
 The system includes a comprehensive `pytest` suite ensuring quantitative accuracy and infrastructure stability.
 
@@ -78,7 +78,7 @@ pytest tests/ -v
 
 ---
 
-## 🔒 Security Posture & Non-Custodial Architecture
+##  Security Posture & Non-Custodial Architecture
 
 Synthro is designed with institutional fund safety in mind:
 1. **Agent Delegation:** The master private key should only be used once (externally) to authorize a session Agent Wallet. The backend `HYPERLIQUID_AGENT_PRIVATE_KEY` only possesses the right to sign L1 order actions.
