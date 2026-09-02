@@ -60,8 +60,6 @@ A complete `docker-compose.yml` orchestrates the system.
 ```bash
 docker-compose up --build -d
 ```
-- **Backend API:** http://localhost:8000
-- **Frontend UI:** http://localhost:3000
 
 ---
 
