@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceArea } from "recharts";
 import { EquitySnapshot, SummaryMetrics } from "../lib/types";
 import { TrendingUp } from "lucide-react";
 
@@ -12,6 +12,21 @@ interface Props {
 
 export const EquityChart: React.FC<Props> = ({ curve, metrics }) => {
   const data = curve.map((pt) => ({ ...pt, shortTime: pt.timestamp.slice(5, 13) }));
+
+  // Find continuous segments of `is_unwound` to draw ReferenceAreas
+  const unwindSegments: { start: string; end: string }[] = [];
+  let currentStart: string | null = null;
+  for (let i = 0; i < data.length; i++) {
+    if (data[i].is_unwound) {
+      if (!currentStart) currentStart = data[i].shortTime;
+    } else {
+      if (currentStart) {
+        unwindSegments.push({ start: currentStart, end: data[i-1].shortTime });
+        currentStart = null;
+      }
+    }
+  }
+  if (currentStart) unwindSegments.push({ start: currentStart, end: data[data.length - 1].shortTime });
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -75,6 +90,9 @@ export const EquityChart: React.FC<Props> = ({ curve, metrics }) => {
                 domain={['auto', 'auto']}
               />
               <Tooltip content={<CustomTooltip />} />
+              {unwindSegments.map((seg, i) => (
+                <ReferenceArea key={i} x1={seg.start} x2={seg.end} fill="#F43F5E" fillOpacity={0.1} />
+              ))}
               <Area type="monotone" dataKey="nav" name="Strategy NAV" stroke="#22D3EE" strokeWidth={2} fillOpacity={1} fill="url(#navGrad)" />
               <Area type="monotone" dataKey="benchmark_nav" name="B&H Benchmark" stroke="#818CF8" strokeWidth={1.5} strokeDasharray="4 4" fillOpacity={1} fill="url(#benchGrad)" />
             </AreaChart>
@@ -108,6 +126,9 @@ export const EquityChart: React.FC<Props> = ({ curve, metrics }) => {
                 reversed
               />
               <Tooltip content={<CustomTooltip />} />
+              {unwindSegments.map((seg, i) => (
+                <ReferenceArea key={i} x1={seg.start} x2={seg.end} fill="#F43F5E" fillOpacity={0.1} />
+              ))}
               <Area type="stepAfter" dataKey="drawdown_pct" name="Drawdown" stroke="#F43F5E" strokeWidth={1.5} fillOpacity={1} fill="url(#ddGrad)" />
             </AreaChart>
           </ResponsiveContainer>

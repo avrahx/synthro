@@ -15,6 +15,8 @@ export interface BacktestRequest {
   vault_mode: boolean;
   leader_stake_pct: number;
   hwm_fee_pct: number;
+  market_regime?: "BULL" | "CHOP" | "BEAR";
+  use_circuit_breaker?: boolean;
 }
 
 export interface TradeRecord {
@@ -48,6 +50,7 @@ export interface EquitySnapshot {
   drawdown_pct: number;
   period_pnl: number;
   period_return_pct: number;
+  is_unwound?: boolean;
 }
 
 export interface SummaryMetrics {
@@ -107,6 +110,7 @@ export interface FundingRateRow {
   hl_mark_price: number;
   hl_open_interest_usd: number;
   signal: "STRONG_LONG" | "LONG" | "NEUTRAL" | "SHORT" | "STRONG_SHORT";
+  is_unwound?: boolean;
 }
 
 export interface FundingSnapshot {

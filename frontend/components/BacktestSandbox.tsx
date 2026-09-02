@@ -27,6 +27,8 @@ export const BacktestSandbox: React.FC<Props> = ({ onRun, isRunning }) => {
     vault_mode: true,
     leader_stake_pct: 5.0,
     hwm_fee_pct: 10.0,
+    market_regime: "BULL",
+    use_circuit_breaker: false,
   });
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -50,6 +52,32 @@ export const BacktestSandbox: React.FC<Props> = ({ onRun, isRunning }) => {
         <button type="button" onClick={() => setShowAdvanced(!showAdvanced)} className="text-xs font-mono text-gray-400 hover:text-hl-cyan transition-colors">
           {showAdvanced ? "[− Hide Advanced]" : "[+ Advanced]"}
         </button>
+      </div>
+
+      {/* Market Regime Presets */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <label className="text-[10px] text-gray-500 uppercase font-bold shrink-0">Market Regime:</label>
+        <div className="flex flex-wrap gap-2">
+          {([
+            { id: "BULL", label: "Structural Bull (+ Carry)" },
+            { id: "CHOP", label: "Market Chop (Mean Reverting)" },
+            { id: "BEAR", label: "Liquidation Cascade (Bear Panic)" }
+          ] as const).map(regime => (
+            <button
+              key={regime.id}
+              type="button"
+              onClick={() => setParams({ ...params, market_regime: regime.id })}
+              className={`px-3 py-1.5 rounded-lg border text-xs transition-all font-mono ${
+                params.market_regime === regime.id
+                  ? regime.id === "BEAR" ? "bg-red-500/15 text-red-400 border-red-500/40 font-bold" 
+                    : "bg-hl-cyan/15 text-hl-cyan border-hl-cyan/40 font-bold"
+                  : "bg-bg-elevated text-gray-500 border-border-subtle hover:border-gray-600"
+              }`}
+            >
+              {regime.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 font-mono text-xs">
@@ -128,12 +156,22 @@ export const BacktestSandbox: React.FC<Props> = ({ onRun, isRunning }) => {
       )}
 
       <div className="flex items-center justify-between pt-2">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={params.vault_mode}
-            onChange={(e) => setParams({ ...params, vault_mode: e.target.checked })}
-            className="accent-[#22D3EE] w-4 h-4 rounded" />
-          <span className="text-xs font-mono text-gray-300">Simulate as HL User Vault (5% leader / 10% HWM)</span>
-        </label>
+        <div className="flex flex-col gap-2">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={params.vault_mode}
+              onChange={(e) => setParams({ ...params, vault_mode: e.target.checked })}
+              className="accent-[#22D3EE] w-4 h-4 rounded" />
+            <span className="text-xs font-mono text-gray-300">Simulate as HL User Vault</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={params.use_circuit_breaker}
+              onChange={(e) => setParams({ ...params, use_circuit_breaker: e.target.checked })}
+              className="accent-[#F43F5E] w-4 h-4 rounded" />
+            <span className={`text-xs font-mono font-bold ${params.use_circuit_breaker ? 'text-red-400' : 'text-gray-500'}`}>
+              Enable Circuit Breaker Unwind (Negative Carry Protection)
+            </span>
+          </label>
+        </div>
 
         <button type="submit" disabled={isRunning}
           className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-gradient-to-r from-hl-cyan via-hl-blue to-hl-violet text-white font-mono font-bold text-xs uppercase tracking-wider hover:opacity-90 active:scale-95 transition-all shadow-glow disabled:opacity-50 cursor-pointer">

@@ -176,13 +176,15 @@ export const LiveFundingMatrix: React.FC = () => {
           <tbody className="divide-y divide-border-subtle/40">
             {filtered.map((r) => {
               const isPositive = r.hl_funding_1h > 0;
-              const colorClass = isPositive ? "text-synthro-mint" : "text-[#f43f5e]";
+              const isUnwound = r.hl_funding_annualized_pct < -2.0;
+              const colorClass = isUnwound ? "text-red-500 opacity-50" : (isPositive ? "text-synthro-mint" : "text-[#f43f5e]");
               const isHighYield = r.hl_funding_annualized_pct > 15;
+              const rowBg = isUnwound ? "bg-red-500/5 hover:bg-red-500/10 border-l-2 border-red-500" : "hover:bg-bg-elevated/60";
 
               return (
-                <tr key={r.symbol} className="hover:bg-bg-elevated/60 transition-colors group">
-                  <td className="py-3 px-4 font-bold text-white flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-synthro-cyan" />
+                <tr key={r.symbol} className={`transition-colors group ${rowBg}`}>
+                  <td className={`py-3 px-4 font-bold flex items-center gap-2 ${isUnwound ? 'text-red-400' : 'text-white'}`}>
+                    <span className={`w-2 h-2 rounded-full ${isUnwound ? 'bg-red-500' : 'bg-synthro-cyan'}`} />
                     <span className="text-sm">{r.symbol}</span>
                     {r.maxLeverage && (
                       <span className="px-1.5 py-0.5 rounded bg-bg-raised text-[9px] text-gray-400 border border-border-subtle">
@@ -211,7 +213,11 @@ export const LiveFundingMatrix: React.FC = () => {
                     {formatShort(r.volume24h || 0)}
                   </td>
                   <td className="py-3 px-4 text-right">
-                    {isHighYield ? (
+                    {isUnwound ? (
+                      <span className="inline-block px-2.5 py-1 rounded text-[10px] font-bold tracking-wider border bg-red-500/10 text-red-500 border-red-500/30">
+                        NEGATIVE CARRY - UNWOUND
+                      </span>
+                    ) : isHighYield ? (
                       <span className="inline-block px-2.5 py-1 rounded text-[10px] font-bold tracking-wider border bg-synthro-mint/15 text-synthro-mint border-synthro-mint/30 shadow-[0_0_10px_rgba(77,235,214,0.2)]">
                         High Yield Opportunity
                       </span>
