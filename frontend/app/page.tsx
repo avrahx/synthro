@@ -6,6 +6,7 @@ import { MetricCards } from "../components/MetricCards";
 import { LiveFundingMatrix } from "../components/LiveFundingMatrix";
 import { BacktestSandbox } from "../components/BacktestSandbox";
 import { EquityChart } from "../components/EquityChart";
+import { CostBridge } from "../components/CostBridge";
 import { VaultTearSheet } from "../components/VaultTearSheet";
 import { ExecutionTerminal } from "../components/ExecutionTerminal";
 import { ExportActions } from "../components/ExportActions";
@@ -179,6 +180,8 @@ export default function Dashboard() {
                 />
 
                 <EquityChart curve={result.equity_curve} metrics={m} />
+
+                <CostBridge metrics={m} />
 
                 {/* Attribution */}
                 <div className="glass rounded-xl p-5">

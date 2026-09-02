@@ -98,9 +98,18 @@ export async function runBacktest(req: BacktestRequest): Promise<BacktestRespons
   let perpValue = initialCap;
   
   let cumFunding = 0;
-  let cumFees = 0;
-  let cumSlippage = 0;
-  let highWaterMark = initialCap;
+  
+  // Initial entry friction
+  let tradingVolume = initialCap * 2;
+  let cumSlippage = tradingVolume * (req.slippage_bps / 10000);
+  let cumFees = tradingVolume * (req.taker_fee_bps / 10000);
+  let cumBorrowCosts = 0;
+  
+  nav -= (cumSlippage + cumFees);
+  spotValue = nav;
+  perpValue = nav;
+  
+  let highWaterMark = nav;
   let maxDrawdown = 0;
   
   const curve: EquitySnapshot[] = [];
@@ -140,8 +149,10 @@ export async function runBacktest(req: BacktestRequest): Promise<BacktestRespons
       if (!isUnwound && consecutiveNeg >= 3) {
         // Trigger Unwind
         isUnwound = true;
-        const slippage = nav * (req.slippage_bps / 10000);
-        const fees = nav * (req.taker_fee_bps / 10000);
+        const vol = nav * 2;
+        tradingVolume += vol;
+        const slippage = vol * (req.slippage_bps / 10000);
+        const fees = vol * (req.taker_fee_bps / 10000);
         nav -= (slippage + fees);
         cumSlippage += slippage;
         cumFees += fees;
@@ -157,8 +168,10 @@ export async function runBacktest(req: BacktestRequest): Promise<BacktestRespons
       } else if (isUnwound && fundingAPR > 0.05) {
         // Re-enter
         isUnwound = false;
-        const slippage = cash * (req.slippage_bps / 10000);
-        const fees = cash * (req.taker_fee_bps / 10000);
+        const vol = cash * 2;
+        tradingVolume += vol;
+        const slippage = vol * (req.slippage_bps / 10000);
+        const fees = vol * (req.taker_fee_bps / 10000);
         nav -= (slippage + fees);
         cumSlippage += slippage;
         cumFees += fees;
@@ -176,11 +189,15 @@ export async function runBacktest(req: BacktestRequest): Promise<BacktestRespons
       isUnwound = false;
     }
     
-    // Accrue Funding
+    // Accrue Funding & Costs
     if (!isUnwound) {
       const earned = spotValue * fundingHourly;
       cumFunding += earned;
       nav += earned;
+      
+      const borrowCost = spotValue * ((req.margin_borrow_apr || 0.05) / (365 * 24));
+      cumBorrowCosts += borrowCost;
+      nav -= borrowCost;
     }
     
     // Benchmark just holds (random walk with drift)
@@ -228,12 +245,22 @@ export async function runBacktest(req: BacktestRequest): Promise<BacktestRespons
       win_rate_pct: 95,
       profit_factor: 15.4,
       total_trades: trades.length,
+      
       gross_yield_usd: cumFunding,
       total_funding_usd: cumFunding,
       total_fees_usd: cumFees,
       total_slippage_usd: cumSlippage,
-      margin_borrow_cost_usd: 0,
+      margin_borrow_cost_usd: cumBorrowCosts,
       net_profit_usd: nav - initialCap,
+      
+      gross_funding_yield_usdc: cumFunding,
+      exchange_taker_fees_usdc: cumFees,
+      slippage_drag_usdc: cumSlippage,
+      spot_borrow_costs_usdc: cumBorrowCosts,
+      net_realized_yield_usdc: cumFunding - cumFees - cumSlippage - cumBorrowCosts,
+      turnover_ratio: (tradingVolume / initialCap) * (365 / days),
+      fee_drag_bps: ((cumFees + cumSlippage + cumBorrowCosts) / (cumFunding || 1)) * 10000,
+      
       final_nav: nav,
       initial_capital: initialCap
     },

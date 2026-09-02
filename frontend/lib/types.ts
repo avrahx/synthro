@@ -76,6 +76,14 @@ export interface SummaryMetrics {
   margin_borrow_cost_usd: number;
   net_profit_usd: number;
   
+  gross_funding_yield_usdc: number;
+  exchange_taker_fees_usdc: number;
+  slippage_drag_usdc: number;
+  spot_borrow_costs_usdc: number;
+  net_realized_yield_usdc: number;
+  turnover_ratio: number;
+  fee_drag_bps: number;
+  
   final_nav: number;
   initial_capital: number;
 }
