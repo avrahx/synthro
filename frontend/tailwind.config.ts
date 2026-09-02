@@ -19,13 +19,13 @@ const config: Config = {
           violet: "#A78BFA",
         },
         synthro: {
-          bg: "#080b11",
-          card: "#0d131f",
-          "card-hover": "#121a2b",
-          border: "#1c283d",
-          mint: "#0df2a4",
-          cyan: "#00d8f6",
-          muted: "#64748b",
+          bg: "#08141f",
+          card: "#12252e",
+          "card-hover": "#0f636e",
+          border: "#1a879f",
+          mint: "#4debd6",
+          cyan: "#21cfb3",
+          muted: "#6c7c94",
         }
       },
       fontFamily: {

@@ -30,13 +30,12 @@
 }
 
 .text-synthro-gradient {
-  background: linear-gradient(to right, #0df2a4, #00d8f6);
+  background: linear-gradient(to right, #4debd6, #21cfb3);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .border-synthro-glow {
-  border-color: rgba(13, 242, 164, 0.2);
-  box-shadow: 0 0 10px rgba(13, 242, 164, 0.2);
+  box-shadow: 0 0 15px rgba(33, 207, 179, 0.15), inset 0 0 15px rgba(77, 235, 214, 0.1);
 }

@@ -9,7 +9,7 @@ import { EquityChart } from "../components/EquityChart";
 import { VaultTearSheet } from "../components/VaultTearSheet";
 import { ExecutionTerminal } from "../components/ExecutionTerminal";
 import { BacktestRequest, BacktestResponse } from "../lib/types";
-import { runBacktest } from "../lib/api";
+import { runBacktest, BASE_PATH } from "../lib/api";
 import {
   TrendingUp,
   Percent,
@@ -71,8 +71,12 @@ export default function Dashboard() {
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-6 space-y-6 grid-bg">
         {/* Banner */}
-        <div className="glass rounded-2xl p-6 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-hl-cyan/5 via-hl-blue/5 to-hl-violet/5" />
+        <div 
+          className="glass rounded-2xl p-6 relative overflow-hidden bg-cover bg-center border border-synthro-border"
+          style={{ backgroundImage: `url(${BASE_PATH}/assets/Banner_Wide.jpg)` }}
+        >
+          <div className="absolute inset-0 bg-synthro-bg/80 backdrop-blur-sm" />
+          <div className="absolute inset-0 bg-gradient-to-r from-synthro-cyan/10 via-transparent to-transparent" />
           <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
             <div className="space-y-1">
               <div className="flex items-center gap-2">

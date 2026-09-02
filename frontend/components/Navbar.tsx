@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { checkHealth } from "../lib/api";
-import { Zap, Wifi, WifiOff, ChevronDown } from "lucide-react";
+import { checkHealth, BASE_PATH } from "../lib/api";
+import { Wifi, WifiOff, ChevronDown } from "lucide-react";
 
 export const Navbar: React.FC = () => {
   const [health, setHealth] = useState<{
@@ -22,18 +22,8 @@ export const Navbar: React.FC = () => {
     <header className="h-14 border-b border-border-subtle bg-bg-raised/90 backdrop-blur-lg sticky top-0 z-50 flex items-center justify-between px-6">
       {/* Brand */}
       <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2.5 group">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-hl-cyan via-hl-blue to-hl-violet flex items-center justify-center shadow-glow">
-            <Zap className="w-4.5 h-4.5 text-black stroke-[2.5]" />
-          </div>
-          <div className="flex flex-col">
-            <span className="font-mono text-sm font-black tracking-[0.12em] text-white group-hover:text-hl-cyan transition-colors">
-              SYNTHRO
-            </span>
-            <span className="text-[9px] font-mono text-gray-500 tracking-wider -mt-0.5">
-              HYPERVAULT ALPHA ENGINE
-            </span>
-          </div>
+        <div className="flex items-center group h-10 overflow-hidden rounded">
+          <img src={`${BASE_PATH}/assets/Logo_Wide.jpg`} alt="Synthro" className="h-full object-contain" />
         </div>
 
         {/* Network Badge */}
