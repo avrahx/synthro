@@ -39,3 +39,75 @@
 .border-synthro-glow {
   box-shadow: 0 0 15px rgba(33, 207, 179, 0.15), inset 0 0 15px rgba(77, 235, 214, 0.1);
 }
+
+@media print {
+  body {
+    background-color: white !important;
+    background-image: none !important;
+    color: black !important;
+  }
+  
+  body::before {
+    content: "SYNTHRO QUANTITATIVE REPORT | HYPERLIQUID L1 BASIS ENGINE | CONFIDENTIAL / MODEL EVIDENCE";
+    display: block;
+    text-align: center;
+    font-weight: bold;
+    font-family: monospace;
+    font-size: 14px;
+    padding: 20px;
+    border-bottom: 2px solid black;
+    margin-bottom: 20px;
+    color: black;
+  }
+
+  body::after {
+    content: "Generated via synthro on GitHub Pages | Verification Hash: ecd9a8b | Source: api.hyperliquid.xyz";
+    display: block;
+    text-align: center;
+    font-family: monospace;
+    font-size: 10px;
+    padding: 20px;
+    border-top: 1px solid #ccc;
+    margin-top: 40px;
+    color: #666;
+  }
+
+  .no-print, header, .glass::before, button {
+    display: none !important;
+  }
+  
+  .glass {
+    background: white !important;
+    border: 1px solid #ccc !important;
+    box-shadow: none !important;
+    color: black !important;
+    page-break-inside: avoid;
+  }
+
+  /* Ensure text colors are dark for print */
+  .text-white, .text-gray-400, .text-gray-300, .text-gray-500 {
+    color: #333 !important;
+  }
+  
+  .text-synthro-mint, .text-hl-green {
+    color: #059669 !important; /* Darker green */
+  }
+
+  .text-hl-rose, .text-red-500 {
+    color: #dc2626 !important; /* Darker red */
+  }
+  
+  .text-synthro-cyan, .text-hl-cyan {
+    color: #0284c7 !important; /* Darker blue */
+  }
+
+  /* Force charts container to not clip */
+  .recharts-wrapper {
+    page-break-inside: avoid;
+    width: 100% !important;
+  }
+  
+  svg {
+    page-break-inside: avoid;
+  }
+}

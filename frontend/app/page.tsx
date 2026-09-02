@@ -8,6 +8,7 @@ import { BacktestSandbox } from "../components/BacktestSandbox";
 import { EquityChart } from "../components/EquityChart";
 import { VaultTearSheet } from "../components/VaultTearSheet";
 import { ExecutionTerminal } from "../components/ExecutionTerminal";
+import { ExportActions } from "../components/ExportActions";
 import { BacktestRequest, BacktestResponse } from "../lib/types";
 import { runBacktest, BASE_PATH } from "../lib/api";
 import {
@@ -95,25 +96,29 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="flex items-center gap-1 p-1 rounded-lg bg-bg-raised border border-border-subtle w-fit font-mono text-xs">
-          {([
-            { id: "live" as Tab, label: "LIVE MARKET", icon: Sparkles },
-            { id: "backtest" as Tab, label: "BACKTEST ENGINE", icon: BarChart3 },
-            { id: "vault" as Tab, label: "VAULT SIMULATOR", icon: Vault },
-            { id: "execution" as Tab, label: "EXECUTION TERMINAL", icon: Terminal },
-          ]).map((t) => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-md transition-all ${
-                tab === t.id
-                  ? "bg-bg-elevated text-hl-cyan font-bold border border-border-strong shadow-glow"
-                  : "text-gray-400 hover:text-white"
-              }`}
-            >
-              <t.icon className="w-3.5 h-3.5" />
-              {t.label}
-            </button>
-          ))}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print">
+          {/* Tab Navigation */}
+          <div className="flex items-center gap-1 p-1 rounded-lg bg-bg-raised border border-border-subtle w-fit font-mono text-xs">
+            {([
+              { id: "live" as Tab, label: "LIVE MARKET", icon: Sparkles },
+              { id: "backtest" as Tab, label: "BACKTEST ENGINE", icon: BarChart3 },
+              { id: "vault" as Tab, label: "VAULT SIMULATOR", icon: Vault },
+              { id: "execution" as Tab, label: "EXECUTION TERMINAL", icon: Terminal },
+            ]).map((t) => (
+              <button key={t.id} onClick={() => setTab(t.id)}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-md transition-all ${
+                  tab === t.id
+                    ? "bg-bg-elevated text-synthro-cyan font-bold border border-border-strong shadow-glow"
+                    : "text-gray-400 hover:text-white"
+                }`}
+              >
+                <t.icon className="w-3.5 h-3.5" />
+                {t.label}
+              </button>
+            ))}
+          </div>
+          
+          {tab === "backtest" && <ExportActions data={result} />}
         </div>
 
         {/* Live Market Tab */}

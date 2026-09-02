@@ -70,7 +70,7 @@ export const MetricCards: React.FC<{
     initial="hidden"
     animate="visible"
     variants={{ visible: { transition: { staggerChildren: 0.1 } } }}
-    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 print:grid-cols-4 gap-4"
   >
     {metrics.map((m) => (
       <MetricCard key={m.label} {...m} />
