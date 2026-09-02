@@ -2,6 +2,9 @@
 
 An institutional-grade quantitative framework designed for Hyperliquid L1. Synthro implements delta-neutral basis arbitrage, continuous 1-hour funding harvesting, and native User Vault simulation using a sub-millisecond vectorized backtesting engine and a secure, non-custodial execution layer.
 
+> **Live Demonstration:** [https://avrahx.github.io/synthro/](https://avrahx.github.io/synthro/)
+> *The frontend terminal is deployed as a static export on GitHub Pages, utilizing client-side fallbacks to seamlessly showcase the quantitative data without a live Python backend.*
+
 ---
 
 ##  Architecture Overview
