@@ -18,6 +18,15 @@ const config: Config = {
           rose: "#F43F5E",
           violet: "#A78BFA",
         },
+        synthro: {
+          bg: "#080b11",
+          card: "#0d131f",
+          "card-hover": "#121a2b",
+          border: "#1c283d",
+          mint: "#0df2a4",
+          cyan: "#00d8f6",
+          muted: "#64748b",
+        }
       },
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],

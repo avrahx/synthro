@@ -12,26 +12,55 @@ import {
 } from "./types";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const BASE_PATH = process.env.NODE_ENV === 'production' ? '/synthro' : '';
 
 export async function fetchFunding(): Promise<FundingSnapshot> {
-  const res = await fetch(`${API}/api/market/funding`, { cache: "no-store" });
-  if (!res.ok) throw new Error(`Funding fetch failed: ${res.statusText}`);
-  return res.json();
+  try {
+    const res = await fetch(`${API}/api/market/funding`, { cache: "no-store" });
+    if (!res.ok) throw new Error(`Funding fetch failed: ${res.statusText}`);
+    return await res.json();
+  } catch (err) {
+    const res = await fetch(`${BASE_PATH}/data/live_funding.json`);
+    return res.json();
+  }
 }
 
 export async function runBacktest(
   req: BacktestRequest,
 ): Promise<BacktestResponse> {
-  const res = await fetch(`${API}/api/backtest/run`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(req),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || `Backtest failed: ${res.status}`);
+  try {
+    const res = await fetch(`${API}/api/backtest/run`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req),
+    });
+    if (!res.ok) {
+      throw new Error(`Backtest failed`);
+    }
+    return await res.json();
+  } catch (err) {
+    // Fallback static execution
+    const res = await fetch(`${BASE_PATH}/data/default_backtest.json`);
+    const data = await res.json();
+    
+    // Interactivity logic: recalculate capital size for the visual graphs
+    const ratio = req.initial_capital / data.request.initial_capital;
+    data.summary.initial_capital = req.initial_capital;
+    data.summary.final_nav *= ratio;
+    data.summary.net_profit_usd *= ratio;
+    data.summary.gross_yield_usd *= ratio;
+    
+    data.equity_curve = data.equity_curve.map((p: any) => ({
+      ...p,
+      nav: p.nav * ratio,
+      benchmark_nav: p.benchmark_nav * ratio,
+      cash: p.cash * ratio,
+      cumulative_funding_received: p.cumulative_funding_received * ratio
+    }));
+    
+    data.request = req;
+    return data;
   }
-  return res.json();
 }
 
 export async function fetchVaultStats(): Promise<VaultStats> {

@@ -1,0 +1,43 @@
+{
+  "timestamp": "2026-09-01T20:00:00Z",
+  "network": "testnet",
+  "rates": [
+    {
+      "symbol": "BTC",
+      "hl_funding_1h": 0.00001,
+      "hl_funding_annualized_pct": 8.76,
+      "cex_funding_8h": 0.00008,
+      "cex_funding_annualized_pct": 8.76,
+      "spread_annualized_pct": 0,
+      "hl_mark_price": 59000,
+      "hl_open_interest_usd": 1000000,
+      "signal": "NEUTRAL"
+    },
+    {
+      "symbol": "ETH",
+      "hl_funding_1h": 0.00002,
+      "hl_funding_annualized_pct": 17.52,
+      "cex_funding_8h": 0.0001,
+      "cex_funding_annualized_pct": 10.95,
+      "spread_annualized_pct": 6.57,
+      "hl_mark_price": 2500,
+      "hl_open_interest_usd": 500000,
+      "signal": "LONG"
+    },
+    {
+      "symbol": "SOL",
+      "hl_funding_1h": 0.00003,
+      "hl_funding_annualized_pct": 26.28,
+      "cex_funding_8h": 0.0001,
+      "cex_funding_annualized_pct": 10.95,
+      "spread_annualized_pct": 15.33,
+      "hl_mark_price": 140,
+      "hl_open_interest_usd": 300000,
+      "signal": "STRONG_LONG"
+    }
+  ],
+  "avg_hl_annualized_pct": 17.52,
+  "avg_cex_annualized_pct": 10.22,
+  "avg_spread_pct": 7.3,
+  "best_opportunity": null
+}
