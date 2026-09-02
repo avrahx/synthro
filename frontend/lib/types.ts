@@ -97,6 +97,8 @@ export interface BacktestResponse {
 
 export interface FundingRateRow {
   symbol: string;
+  maxLeverage?: number;
+  volume24h?: number;
   hl_funding_1h: number;
   hl_funding_annualized_pct: number;
   cex_funding_8h: number;

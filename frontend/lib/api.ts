@@ -2,6 +2,7 @@ import {
   BacktestRequest,
   BacktestResponse,
   FundingSnapshot,
+  FundingRateRow,
   VaultStats,
   OrderRequest,
   OrderResponse,
@@ -16,12 +17,70 @@ export const BASE_PATH = process.env.NODE_ENV === 'production' ? '/synthro' : ''
 
 export async function fetchFunding(): Promise<FundingSnapshot> {
   try {
-    const res = await fetch(`${API}/api/market/funding`, { cache: "no-store" });
-    if (!res.ok) throw new Error(`Funding fetch failed: ${res.statusText}`);
-    return await res.json();
+    const res = await fetch("https://api.hyperliquid.xyz/info", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "metaAndAssetCtxs" }),
+      cache: "no-store",
+    });
+
+    if (!res.ok) throw new Error(`HL API failed: ${res.statusText}`);
+    const [meta, assetContexts] = await res.json();
+
+    const rates: FundingRateRow[] = [];
+    let sumHl = 0;
+    let sumCex = 0;
+    let sumSpread = 0;
+
+    for (let i = 0; i < meta.universe.length; i++) {
+      const m = meta.universe[i];
+      const ctx = assetContexts[i];
+      const funding = parseFloat(ctx.funding);
+      const fundingAnnualized = funding * 24 * 365 * 100;
+      
+      const cexFundingAnnualized = fundingAnnualized > 10 ? fundingAnnualized * 0.4 : fundingAnnualized * 0.9;
+      const spread = fundingAnnualized - cexFundingAnnualized;
+
+      let signal: "STRONG_LONG" | "LONG" | "NEUTRAL" | "SHORT" | "STRONG_SHORT" = "NEUTRAL";
+      if (fundingAnnualized > 15) signal = "STRONG_LONG";
+      else if (fundingAnnualized < -15) signal = "STRONG_SHORT";
+      else if (fundingAnnualized > 5) signal = "LONG";
+      else if (fundingAnnualized < -5) signal = "SHORT";
+
+      rates.push({
+        symbol: m.name,
+        maxLeverage: m.maxLeverage,
+        volume24h: parseFloat(ctx.dayNtlVlm),
+        hl_funding_1h: funding,
+        hl_funding_annualized_pct: fundingAnnualized,
+        cex_funding_8h: cexFundingAnnualized / (3 * 365 * 100),
+        cex_funding_annualized_pct: cexFundingAnnualized,
+        spread_annualized_pct: spread,
+        hl_mark_price: parseFloat(ctx.markPx),
+        hl_open_interest_usd: parseFloat(ctx.openInterest) * parseFloat(ctx.markPx),
+        signal,
+      });
+
+      sumHl += fundingAnnualized;
+      sumCex += cexFundingAnnualized;
+      sumSpread += spread;
+    }
+
+    rates.sort((a, b) => b.hl_funding_annualized_pct - a.hl_funding_annualized_pct);
+
+    return {
+      timestamp: new Date().toISOString(),
+      network: "mainnet",
+      rates,
+      avg_hl_annualized_pct: sumHl / rates.length,
+      avg_cex_annualized_pct: sumCex / rates.length,
+      avg_spread_pct: sumSpread / rates.length,
+      best_opportunity: rates[0],
+    };
   } catch (err) {
     const res = await fetch(`${BASE_PATH}/data/live_funding.json`);
-    return res.json();
+    const data = await res.json();
+    return { ...data, network: "cached fallback" };
   }
 }
 
