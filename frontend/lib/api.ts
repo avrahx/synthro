@@ -176,11 +176,15 @@ export async function checkHealth(): Promise<{
 }> {
   const t0 = performance.now();
   try {
-    const res = await fetch(`${API}/health`, { cache: "no-store" });
+    const res = await fetch("https://api.hyperliquid.xyz/info", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "meta" }),
+      cache: "no-store",
+    });
     const ms = Math.round(performance.now() - t0);
     if (res.ok) {
-      const data = await res.json();
-      return { status: "ONLINE", latencyMs: ms, network: data.network || "testnet" };
+      return { status: "ONLINE", latencyMs: ms, network: "mainnet" };
     }
     return { status: "DEGRADED", latencyMs: ms, network: "unknown" };
   } catch {
