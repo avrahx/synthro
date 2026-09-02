@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
+import { Outfit, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+
+const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
+const jbMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jb-mono" });
 
 export const metadata: Metadata = {
   title: "Synthro — HyperVault Alpha Engine",
@@ -9,10 +13,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="dark">
-      <body className="min-h-screen flex flex-col selection:bg-synthro-cyan selection:text-black relative">
+    <html lang="en" className={`dark ${outfit.variable} ${jbMono.variable}`}>
+      <body className="min-h-screen flex flex-col selection:bg-synthro-cyan selection:text-black relative font-sans">
         {/* Background Grid */}
         <div className="fixed inset-0 z-[-2] bg-grid-pattern opacity-50 mix-blend-overlay pointer-events-none" />
+        
+        {/* Noise Texture */}
+        <div className="fixed inset-0 z-[-1] bg-noise opacity-[0.03] pointer-events-none mix-blend-screen" />
         
         {/* Top Right Cyan Glow */}
         <div className="fixed top-0 right-0 z-[-1] w-[600px] h-[600px] bg-[rgba(0,216,246,0.07)] rounded-full blur-[120px] pointer-events-none transform translate-x-1/3 -translate-y-1/3" />

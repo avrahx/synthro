@@ -29,8 +29,8 @@ const config: Config = {
         }
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
-        mono: ["JetBrains Mono", "ui-monospace", "SFMono-Regular", "monospace"],
+        sans: ["var(--font-outfit)", "Inter", "system-ui", "sans-serif"],
+        mono: ["var(--font-jb-mono)", "JetBrains Mono", "ui-monospace", "SFMono-Regular", "monospace"],
       },
       boxShadow: {
         glow: "0 0 24px -6px rgba(34, 211, 238, 0.15)",

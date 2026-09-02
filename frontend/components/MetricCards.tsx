@@ -1,5 +1,6 @@
 import React from "react";
 import { LucideIcon } from "lucide-react";
+import { motion } from "framer-motion";
 
 interface MetricCardProps {
   label: string;
@@ -14,14 +15,19 @@ interface MetricCardProps {
 export const MetricCard: React.FC<MetricCardProps> = ({
   label, value, sub, delta, deltaType = "positive", icon: Icon, badge,
 }) => (
-  <div className="glass rounded-xl p-5 relative overflow-hidden group hover:border-hl-cyan/30 transition-all duration-300">
-    <div className="absolute top-0 right-0 -mt-6 -mr-6 w-28 h-28 bg-hl-cyan/[0.03] rounded-full blur-2xl group-hover:bg-hl-cyan/[0.07] transition-all" />
+  <motion.div 
+    variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+    whileHover={{ scale: 1.02 }}
+    transition={{ duration: 0.3, ease: "easeOut" }}
+    className="glass rounded-xl p-5 relative overflow-hidden group hover:border-synthro-cyan/40 transition-colors duration-300 shadow-[0_0_15px_rgba(0,0,0,0.2)] hover:shadow-glow"
+  >
+    <div className="absolute top-0 right-0 -mt-6 -mr-6 w-28 h-28 bg-synthro-cyan/[0.03] rounded-full blur-2xl group-hover:bg-synthro-cyan/[0.1] transition-all" />
 
     <div className="flex items-center justify-between mb-3">
       <span className="text-[10px] font-mono font-semibold text-gray-500 uppercase tracking-wider">
         {label}
       </span>
-      <div className="p-2 rounded-lg bg-bg-elevated border border-border-subtle text-hl-cyan group-hover:scale-110 transition-transform">
+      <div className="p-2 rounded-lg bg-synthro-bg border border-synthro-border text-synthro-cyan group-hover:bg-synthro-cyan/10 transition-colors">
         <Icon className="w-4 h-4" />
       </div>
     </div>
@@ -37,8 +43,8 @@ export const MetricCard: React.FC<MetricCardProps> = ({
       {delta && (
         <span
           className={`font-semibold ${
-            deltaType === "positive" ? "text-hl-green" :
-            deltaType === "negative" ? "text-hl-rose" : "text-gray-400"
+            deltaType === "positive" ? "text-synthro-mint" :
+            deltaType === "negative" ? "text-red-500" : "text-synthro-muted"
           }`}
         >
           {delta}
@@ -50,7 +56,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
         </span>
       )}
     </div>
-  </div>
+  </motion.div>
 );
 
 export const MetricCards: React.FC<{
@@ -60,9 +66,14 @@ export const MetricCards: React.FC<{
     icon: LucideIcon; badge?: string;
   }[];
 }> = ({ metrics }) => (
-  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+  <motion.div 
+    initial="hidden"
+    animate="visible"
+    variants={{ visible: { transition: { staggerChildren: 0.1 } } }}
+    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+  >
     {metrics.map((m) => (
       <MetricCard key={m.label} {...m} />
     ))}
-  </div>
+  </motion.div>
 );
