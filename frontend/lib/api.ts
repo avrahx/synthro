@@ -12,7 +12,7 @@ import {
 } from "./types";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-const BASE_PATH = process.env.NODE_ENV === 'production' ? '/synthro' : '';
+export const BASE_PATH = process.env.NODE_ENV === 'production' ? '/synthro' : '';
 
 export async function fetchFunding(): Promise<FundingSnapshot> {
   try {
