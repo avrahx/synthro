@@ -10,6 +10,7 @@ import { CostBridge } from "../components/CostBridge";
 import { VaultTearSheet } from "../components/VaultTearSheet";
 import { ExecutionTerminal } from "../components/ExecutionTerminal";
 import { ExportActions } from "../components/ExportActions";
+import { StressTester } from "../components/StressTester";
 import { BacktestRequest, BacktestResponse } from "../lib/types";
 import { runBacktest, BASE_PATH } from "../lib/api";
 import {
@@ -21,9 +22,10 @@ import {
   Sparkles,
   Vault,
   Terminal,
+  Activity
 } from "lucide-react";
 
-type Tab = "live" | "backtest" | "vault" | "execution";
+type Tab = "live" | "backtest" | "vault" | "execution" | "stress";
 
 export default function Dashboard() {
   const [tab, setTab] = useState<Tab>("live");
@@ -103,6 +105,7 @@ export default function Dashboard() {
             {([
               { id: "live" as Tab, label: "LIVE MARKET", icon: Sparkles },
               { id: "backtest" as Tab, label: "BACKTEST ENGINE", icon: BarChart3 },
+              { id: "stress" as Tab, label: "STRESS TEST & MARGIN GUARD", icon: Activity },
               { id: "vault" as Tab, label: "VAULT SIMULATOR", icon: Vault },
               { id: "execution" as Tab, label: "EXECUTION TERMINAL", icon: Terminal },
             ]).map((t) => (
@@ -227,6 +230,9 @@ export default function Dashboard() {
         
         {/* Execution Tab */}
         {tab === "execution" && <ExecutionTerminal />}
+
+        {/* Stress Tester Tab */}
+        {tab === "stress" && <StressTester />}
       </main>
     </>
   );
