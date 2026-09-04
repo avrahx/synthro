@@ -29,6 +29,7 @@ export const BacktestSandbox: React.FC<Props> = ({ onRun, isRunning }) => {
     hwm_fee_pct: 10.0,
     market_regime: "BULL",
     use_circuit_breaker: false,
+    use_ml_sizing: false,
   });
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -170,6 +171,15 @@ export const BacktestSandbox: React.FC<Props> = ({ onRun, isRunning }) => {
             <span className={`text-xs font-mono font-bold ${params.use_circuit_breaker ? 'text-red-400' : 'text-gray-500'}`}>
               Enable Circuit Breaker Unwind (Negative Carry Protection)
             </span>
+          </label>
+          <label className="flex items-center gap-2 text-xs font-mono text-gray-300">
+            <input 
+              type="checkbox" 
+              checked={params.use_ml_sizing}
+              onChange={(e) => setParams({ ...params, use_ml_sizing: e.target.checked })}
+              className="accent-synthro-cyan"
+            />
+            Enable ML Dynamic Volatility Sizing (Gaussian HMM)
           </label>
         </div>
 

@@ -13,6 +13,7 @@ import {
   EquitySnapshot,
   TradeRecord
 } from "./types";
+import { classifyRegime } from "./mlRegime";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 export const BASE_PATH = process.env.NODE_ENV === 'production' ? '/synthro' : '';
@@ -100,7 +101,8 @@ export async function runBacktest(req: BacktestRequest): Promise<BacktestRespons
   let cumFunding = 0;
   
   // Initial entry friction
-  let tradingVolume = initialCap * 2;
+  let currentSizing = 1.0;
+  let tradingVolume = initialCap * 2 * currentSizing;
   let cumSlippage = tradingVolume * (req.slippage_bps / 10000);
   let cumFees = tradingVolume * (req.taker_fee_bps / 10000);
   let cumBorrowCosts = 0;
@@ -138,6 +140,19 @@ export async function runBacktest(req: BacktestRequest): Promise<BacktestRespons
     
     const fundingHourly = fundingAPR / (365 * 24);
     
+    // Calculate simulated volatility proxy for the classifier
+    // We use the absolute change in APR as a proxy for basis volatility
+    const simVol = Math.abs(fundingAPR) * 2; // rough proxy
+
+    let targetSizing = 1.0;
+    if (req.use_ml_sizing) {
+      const ml = classifyRegime({
+        volatility_annualized: simVol,
+        funding_rate_hourly: fundingHourly
+      });
+      targetSizing = ml.sizingMultiplier;
+    }
+
     // Circuit Breaker State Machine
     if (useCB) {
       if (fundingAPR < -0.02) {
@@ -187,6 +202,23 @@ export async function runBacktest(req: BacktestRequest): Promise<BacktestRespons
       }
     } else {
       isUnwound = false;
+    }
+    
+    // ML Dynamic Rebalancing (if not unwound)
+    if (!isUnwound && req.use_ml_sizing) {
+      if (Math.abs(targetSizing - currentSizing) > 0.05) {
+        const deltaExposure = Math.abs(targetSizing - currentSizing) * nav;
+        const slippage = (deltaExposure * 2) * (req.slippage_bps / 10000);
+        const fees = (deltaExposure * 2) * (req.taker_fee_bps / 10000);
+        nav -= (slippage + fees);
+        cumSlippage += slippage;
+        cumFees += fees;
+        tradingVolume += (deltaExposure * 2);
+        currentSizing = targetSizing;
+        
+        spotValue = nav * currentSizing;
+        perpValue = nav * currentSizing;
+      }
     }
     
     // Accrue Funding & Costs

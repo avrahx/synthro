@@ -11,6 +11,7 @@ import { VaultTearSheet } from "../components/VaultTearSheet";
 import { ExecutionTerminal } from "../components/ExecutionTerminal";
 import { ExportActions } from "../components/ExportActions";
 import { StressTester } from "../components/StressTester";
+import { RegimeInspector } from "../components/RegimeInspector";
 import { BacktestRequest, BacktestResponse } from "../lib/types";
 import { runBacktest, BASE_PATH } from "../lib/api";
 import {
@@ -22,10 +23,11 @@ import {
   Sparkles,
   Vault,
   Terminal,
-  Activity
+  Activity,
+  BrainCircuit
 } from "lucide-react";
 
-type Tab = "live" | "backtest" | "vault" | "execution" | "stress";
+type Tab = "live" | "backtest" | "vault" | "execution" | "stress" | "ml_regime";
 
 export default function Dashboard() {
   const [tab, setTab] = useState<Tab>("live");
@@ -104,6 +106,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-1 p-1 rounded-lg bg-bg-raised border border-border-subtle w-fit font-mono text-xs">
             {([
               { id: "live" as Tab, label: "LIVE MARKET", icon: Sparkles },
+              { id: "ml_regime" as Tab, label: "ML REGIME ENGINE", icon: BrainCircuit },
               { id: "backtest" as Tab, label: "BACKTEST ENGINE", icon: BarChart3 },
               { id: "stress" as Tab, label: "STRESS TEST & MARGIN GUARD", icon: Activity },
               { id: "vault" as Tab, label: "VAULT SIMULATOR", icon: Vault },
@@ -233,6 +236,9 @@ export default function Dashboard() {
 
         {/* Stress Tester Tab */}
         {tab === "stress" && <StressTester />}
+
+        {/* ML Regime Engine Tab */}
+        {tab === "ml_regime" && <RegimeInspector />}
       </main>
     </>
   );

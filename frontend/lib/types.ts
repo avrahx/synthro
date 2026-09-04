@@ -17,6 +17,7 @@ export interface BacktestRequest {
   hwm_fee_pct: number;
   market_regime?: "BULL" | "CHOP" | "BEAR";
   use_circuit_breaker?: boolean;
+  use_ml_sizing?: boolean;
 }
 
 export interface TradeRecord {
