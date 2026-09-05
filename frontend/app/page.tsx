@@ -12,6 +12,7 @@ import { ExecutionTerminal } from "../components/ExecutionTerminal";
 import { ExportActions } from "../components/ExportActions";
 import { StressTester } from "../components/StressTester";
 import { RegimeInspector } from "../components/RegimeInspector";
+import { TestnetDispatcher } from "../components/TestnetDispatcher";
 import { BacktestRequest, BacktestResponse } from "../lib/types";
 import { runBacktest, BASE_PATH } from "../lib/api";
 import {
@@ -232,7 +233,12 @@ export default function Dashboard() {
         {tab === "vault" && <VaultTearSheet />}
         
         {/* Execution Tab */}
-        {tab === "execution" && <ExecutionTerminal />}
+        {tab === "execution" && (
+          <div className="space-y-6">
+            <TestnetDispatcher />
+            <ExecutionTerminal />
+          </div>
+        )}
 
         {/* Stress Tester Tab */}
         {tab === "stress" && <StressTester />}

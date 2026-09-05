@@ -7,5 +7,20 @@ const nextConfig = {
   assetPrefix: isProd ? '/synthro/' : '',
   images: { unoptimized: true },
   eslint: { ignoreDuringBuilds: true },
+  webpack: (config) => {
+    config.externals.push(
+      'pino-pretty', 
+      'lokijs', 
+      'encoding',
+      '@base-org/account',
+      '@coinbase/wallet-sdk',
+      '@metamask/connect-evm',
+      '@safe-global/safe-apps-sdk',
+      '@safe-global/safe-apps-provider',
+      '@walletconnect/ethereum-provider',
+      'accounts'
+    );
+    return config;
+  },
 };
 export default nextConfig;

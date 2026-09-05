@@ -2,7 +2,9 @@
 
 import React, { useEffect, useState } from "react";
 import { checkHealth, BASE_PATH } from "../lib/api";
-import { Wifi, WifiOff, ChevronDown } from "lucide-react";
+import { Wifi, WifiOff, Wallet } from "lucide-react";
+import { useAccount, useConnect, useDisconnect } from "wagmi";
+import { injected } from "wagmi/connectors";
 
 export const Navbar: React.FC = () => {
   const [health, setHealth] = useState<{
@@ -10,6 +12,18 @@ export const Navbar: React.FC = () => {
     latencyMs: number;
     network: string;
   }>({ status: "CHECKING", latencyMs: 0, network: "testnet" });
+
+  const { address, isConnected } = useAccount();
+  const { connect } = useConnect();
+  const { disconnect } = useDisconnect();
+
+  const handleConnect = () => {
+    if (isConnected) {
+      disconnect();
+    } else {
+      connect({ connector: injected() });
+    }
+  };
 
   useEffect(() => {
     const poll = async () => setHealth(await checkHealth());
@@ -71,6 +85,28 @@ export const Navbar: React.FC = () => {
               : health.status}
           </span>
         </div>
+
+        {/* Connect Wallet Button */}
+        <button 
+          onClick={handleConnect}
+          className={`flex items-center gap-2 px-4 py-1.5 rounded-full font-mono text-xs font-bold transition-all ${
+            isConnected 
+              ? "bg-synthro-mint/10 border border-synthro-mint/40 text-synthro-mint hover:bg-synthro-mint/20" 
+              : "bg-synthro-cyan/10 border border-synthro-cyan/40 text-synthro-cyan hover:bg-synthro-cyan/20 shadow-[0_0_15px_rgba(0,216,246,0.15)]"
+          }`}
+        >
+          {isConnected ? (
+            <>
+              <div className="w-2 h-2 rounded-full bg-synthro-mint animate-pulse" />
+              {address?.slice(0, 6)}...{address?.slice(-4)}
+            </>
+          ) : (
+            <>
+              <Wallet className="w-3.5 h-3.5" />
+              Connect Wallet
+            </>
+          )}
+        </button>
       </div>
     </header>
   );
