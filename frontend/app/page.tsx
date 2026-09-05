@@ -12,6 +12,8 @@ import { ExportActions } from "../components/ExportActions";
 import { StressTester } from "../components/StressTester";
 import { RegimeInspector } from "../components/RegimeInspector";
 import { TestnetDispatcher } from "../components/TestnetDispatcher";
+import { OnChainAudit } from "../components/OnChainAudit";
+import { ContractSpecViewer } from "../components/ContractSpecViewer";
 import { BacktestRequest, BacktestResponse } from "../lib/types";
 import { runBacktest, BASE_PATH } from "../lib/api";
 import {
@@ -27,7 +29,7 @@ import {
   BrainCircuit
 } from "lucide-react";
 
-type Tab = "live" | "backtest" | "vault" | "execution" | "stress" | "ml_regime";
+type Tab = "live" | "backtest" | "vault" | "execution" | "stress" | "ml_regime" | "audit";
 
 export default function Dashboard() {
   const [tab, setTab] = useState<Tab>("live");
@@ -106,9 +108,10 @@ export default function Dashboard() {
               { id: "live" as Tab, label: "LIVE MARKET", icon: Sparkles },
               { id: "ml_regime" as Tab, label: "ML REGIME ENGINE", icon: BrainCircuit },
               { id: "backtest" as Tab, label: "BACKTEST ENGINE", icon: BarChart3 },
-              { id: "stress" as Tab, label: "STRESS TEST & MARGIN GUARD", icon: Activity },
               { id: "vault" as Tab, label: "VAULT SIMULATOR", icon: Vault },
               { id: "execution" as Tab, label: "EXECUTION TERMINAL", icon: Terminal },
+              { id: "audit" as Tab, label: "CRYPTOGRAPHIC AUDIT", icon: ShieldCheck },
+              { id: "stress" as Tab, label: "STRESS TEST", icon: Activity },
             ]).map((t) => (
               <button key={t.id} onClick={() => setTab(t.id)}
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-md transition-all ${
@@ -234,6 +237,32 @@ export default function Dashboard() {
           <div className="space-y-6">
             <TestnetDispatcher />
             <ExecutionTerminal />
+          </div>
+        )}
+
+        {/* Audit Tab */}
+        {tab === "audit" && (
+          <div className="space-y-6">
+            <OnChainAudit />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div className="glass rounded-xl p-6 border border-border-subtle h-[500px]">
+                  <h3 className="font-mono text-sm font-bold text-white uppercase tracking-wide mb-4">
+                    Solidity EVM Architecture
+                  </h3>
+                  <p className="text-gray-400 font-mono text-sm leading-relaxed mb-4">
+                    The Synthro HyperVault utilizes a customized ERC-4626 implementation that anchors all state proofs on-chain.
+                  </p>
+                  <ul className="list-disc list-inside text-gray-500 font-mono text-xs space-y-2">
+                    <li>Inherits OpenZeppelin ERC4626 standard.</li>
+                    <li>Virtual shares decimal offset (inflation attack mitigation).</li>
+                    <li>Strict High Water Mark (HWM) evaluation.</li>
+                    <li>Asymmetric leader capacity requirements ({'>'} 5% equity).</li>
+                  </ul>
+                </div>
+              </div>
+              <ContractSpecViewer />
+            </div>
           </div>
         )}
 
