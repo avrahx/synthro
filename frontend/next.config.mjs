@@ -1,16 +1,17 @@
 /** @type {import('next').NextConfig} */
 const isProd = process.env.NODE_ENV === 'production';
+
 const nextConfig = {
-  reactStrictMode: true,
-  output: "export",
+  output: 'export',
+  trailingSlash: true,              // required for GitHub Pages nested routes
   basePath: isProd ? '/synthro' : '',
   assetPrefix: isProd ? '/synthro/' : '',
   images: { unoptimized: true },
   eslint: { ignoreDuringBuilds: true },
   webpack: (config) => {
     config.externals.push(
-      'pino-pretty', 
-      'lokijs', 
+      'pino-pretty',
+      'lokijs',
       'encoding',
       '@base-org/account',
       '@coinbase/wallet-sdk',
@@ -23,4 +24,5 @@ const nextConfig = {
     return config;
   },
 };
+
 export default nextConfig;

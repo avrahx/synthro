@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowRight, Zap, Shield, TrendingUp } from "lucide-react";
 
@@ -9,10 +10,6 @@ const Hero3DCanvas = dynamic(
   () => import("./Hero3DCanvas").then((m) => ({ default: m.Hero3DCanvas })),
   { ssr: false }
 );
-
-interface LandingHeroProps {
-  onLaunch: () => void;
-}
 
 const STAT_ITEMS = [
   { label: "Annualized Alpha", value: "+34.2%", color: "text-[#0df2a4]" },
@@ -27,7 +24,7 @@ const PILL_ITEMS = [
   { icon: TrendingUp, label: "Live Funding Harvest" },
 ];
 
-export function LandingHero({ onLaunch }: LandingHeroProps) {
+export function LandingHero() {
   return (
     <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden bg-[#06080D]">
       {/* Three.js Canvas background */}
@@ -173,26 +170,18 @@ export function LandingHero({ onLaunch }: LandingHeroProps) {
           transition={{ duration: 0.6, delay: 0.5 }}
           className="flex flex-col sm:flex-row items-center gap-3"
         >
-          <button
-            onClick={onLaunch}
+          <Link
+            href="/terminal"
             className="group flex items-center gap-2 px-8 py-4 rounded-xl font-bold text-sm font-mono transition-all duration-300"
             style={{
               background: "linear-gradient(135deg, #0df2a4 0%, #00d8f6 100%)",
               color: "#06080D",
               boxShadow: "0 0 30px -6px rgba(13,242,164,0.5)",
             }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 0 50px -6px rgba(13,242,164,0.7)";
-              (e.currentTarget as HTMLButtonElement).style.transform = "scale(1.03)";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 0 30px -6px rgba(13,242,164,0.5)";
-              (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)";
-            }}
           >
             Launch Terminal
             <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-          </button>
+          </Link>
 
           <a
             href="https://github.com/avrahx/synthro"

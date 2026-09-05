@@ -1,13 +1,16 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { checkHealth, BASE_PATH } from "../lib/api";
-import { Wifi, WifiOff, Wallet, ChevronDown, LogOut, Sparkles, Copy, Check } from "lucide-react";
+import { Wifi, WifiOff, Wallet, ChevronDown, LogOut, Sparkles, Copy, Check, Home, Terminal } from "lucide-react";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { useDemoMode } from "./DemoContext";
 
 export const Navbar: React.FC = () => {
+  const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
   const [health, setHealth] = useState<{
     status: string;
@@ -50,13 +53,15 @@ export const Navbar: React.FC = () => {
     }
   };
 
+  const isTerminal = pathname?.startsWith("/terminal");
+
   return (
     <header className="h-14 border-b border-border-subtle bg-bg-raised/90 backdrop-blur-lg sticky top-0 z-50 flex items-center justify-between px-6">
       {/* Brand */}
       <div className="flex items-center gap-4">
-        <div className="flex items-center group h-10 overflow-hidden rounded">
+        <Link href="/" className="flex items-center group h-10 overflow-hidden rounded">
           <img src={`${BASE_PATH}/assets/Logo_Wide.jpg`} alt="Synthro" className="h-full object-contain" />
-        </div>
+        </Link>
 
         {/* Network Badge */}
         <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-bg-elevated border border-border-subtle text-[10px] font-mono">
@@ -72,13 +77,31 @@ export const Navbar: React.FC = () => {
           </span>
         </div>
 
-        <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded bg-bg-elevated border border-border-subtle text-[10px] font-mono text-gray-500">
-          <span>HL L1</span>
-          <span className="text-border-strong">|</span>
-          <span>1H FUNDING</span>
-          <span className="text-border-strong">|</span>
-          <span>DELTA NEUTRAL</span>
-        </div>
+        {/* Page Nav */}
+        <nav className="hidden md:flex items-center gap-1 p-1 rounded-lg bg-bg-elevated border border-border-subtle font-mono text-xs">
+          <Link
+            href="/"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all ${
+              !isTerminal
+                ? "bg-bg-raised text-synthro-cyan font-bold border border-border-strong shadow-glow"
+                : "text-gray-400 hover:text-white"
+            }`}
+          >
+            <Home className="w-3 h-3" />
+            Home
+          </Link>
+          <Link
+            href="/terminal"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all ${
+              isTerminal
+                ? "bg-bg-raised text-synthro-cyan font-bold border border-border-strong shadow-glow"
+                : "text-gray-400 hover:text-white"
+            }`}
+          >
+            <Terminal className="w-3 h-3" />
+            Terminal
+          </Link>
+        </nav>
       </div>
 
       {/* Status & Wallet Controls */}
