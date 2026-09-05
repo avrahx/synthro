@@ -9,6 +9,8 @@ import {
   PortfolioDiagnostics,
   PortfolioPosition,
 } from "../lib/userAudit";
+import { BasisExecutionModal } from "./BasisExecutionModal";
+import { ExecutionReceipt } from "../lib/orderRouter";
 import {
   Wallet,
   ShieldCheck,
@@ -36,9 +38,8 @@ export const WalletAudit: React.FC = () => {
 
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<PortfolioDiagnostics | null>(null);
-  const [rebalancing, setRebalancing] = useState(false);
   const [rebalanceCompleted, setRebalanceCompleted] = useState(false);
-  const [rebalanceModalOpen, setRebalanceModalOpen] = useState(false);
+  const [basisModalOpen, setBasisModalOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -68,29 +69,26 @@ export const WalletAudit: React.FC = () => {
     }
   }, [effectiveAddress]);
 
-  const handleSimulateRebalance = () => {
-    setRebalancing(true);
-    setTimeout(() => {
-      setRebalancing(false);
-      setRebalanceCompleted(true);
-      // Neutralize delta in local state
-      if (data) {
-        setData({
-          ...data,
-          netDirectionalDeltaUsd: 0,
-          totalShortExposureUsd: data.totalLongExposureUsd,
-          grossNotionalUsd: data.totalLongExposureUsd * 2,
-          recommendations: [
-            "✓ Portfolio Delta-Neutralized: Directional exposure fully hedged across all spot/perp legs.",
-            ...data.recommendations.filter((r) => !r.includes("unhedged")),
-          ],
-          positions: data.positions.map((p) => ({
-            ...p,
-            rebalanceStatus: "HEDGED",
-          })),
-        });
-      }
-    }, 1200);
+  const handleTradeSuccess = (receipt: ExecutionReceipt) => {
+    setRebalanceCompleted(true);
+    if (data) {
+      setData({
+        ...data,
+        netDirectionalDeltaUsd: 0,
+        totalShortExposureUsd: data.totalLongExposureUsd,
+        grossNotionalUsd: data.totalLongExposureUsd * 2,
+        recommendations: [
+          `✓ Basis Order Filled (${receipt.symbol}): Net portfolio delta neutralized on Hyperliquid L1.`,
+          ...data.recommendations.filter(
+            (r) => !r.includes("unhedged") && !r.includes("Net Long") && !r.includes("Net Short")
+          ),
+        ],
+        positions: data.positions.map((p) => ({
+          ...p,
+          rebalanceStatus: "HEDGED" as const,
+        })),
+      });
+    }
   };
 
   if (!mounted) {
@@ -194,6 +192,15 @@ export const WalletAudit: React.FC = () => {
                 title="Refresh Live Clearinghouse State"
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-synthro-cyan" : ""}`} />
+              </button>
+
+              <button
+                onClick={() => setBasisModalOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-synthro-cyan text-black hover:bg-synthro-cyan/90 transition-all font-bold text-xs font-mono shadow-[0_0_12px_rgba(0,216,246,0.25)] hover:scale-[1.02]"
+                title="Launch 1-Click Delta-Neutral Basis Trade Dispatcher"
+              >
+                <Zap className="w-3.5 h-3.5" />
+                <span>Execute Basis Trade</span>
               </button>
             </div>
 
@@ -403,7 +410,7 @@ export const WalletAudit: React.FC = () => {
           </div>
 
           <button
-            onClick={() => setRebalanceModalOpen(true)}
+            onClick={() => setBasisModalOpen(true)}
             className="shrink-0 px-5 py-2.5 rounded-lg font-mono text-xs font-bold uppercase bg-synthro-cyan text-black hover:bg-synthro-cyan/90 transition-all shadow-[0_0_15px_rgba(0,216,246,0.3)] hover:scale-[1.02]"
           >
             Hedge Portfolio: 1-Click Rebalance
@@ -549,74 +556,14 @@ export const WalletAudit: React.FC = () => {
         </div>
       </div>
 
-      {/* Modal: 1-Click Delta-Neutral Rebalance */}
-      {rebalanceModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200 font-mono">
-          <div className="glass rounded-2xl max-w-lg w-full p-6 border border-synthro-cyan/50 space-y-5 bg-bg-raised shadow-2xl relative">
-            <button
-              onClick={() => setRebalanceModalOpen(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-synthro-cyan/20 border border-synthro-cyan/40 text-synthro-cyan">
-                <ArrowRightLeft className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-white">Delta-Neutral Rebalance Engine</h3>
-                <p className="text-xs text-gray-400">Hyperliquid L1 Batch Order Dispatcher</p>
-              </div>
-            </div>
-
-            <div className="space-y-3 bg-bg p-4 rounded-xl border border-border-strong text-xs">
-              <div className="flex justify-between">
-                <span className="text-gray-400">Current Net Delta:</span>
-                <span className="text-hl-cyan font-bold">+${data?.netDirectionalDeltaUsd.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-400">Recommended Action:</span>
-                <span className="text-synthro-mint font-bold">Sell ${data?.netDirectionalDeltaUsd.toLocaleString()} Perp Shorts</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-400">Projected Post-Rebalance Delta:</span>
-                <span className="text-synthro-mint font-bold">$0.00 (100% Delta-Neutral)</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-400">Estimated Incremental Yield:</span>
-                <span className="text-white font-bold">+18.4% APR Funding Carry</span>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <button
-                onClick={() => setRebalanceModalOpen(false)}
-                className="px-4 py-2 rounded-lg text-xs text-gray-400 hover:text-white"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  setRebalanceModalOpen(false);
-                  handleSimulateRebalance();
-                }}
-                disabled={rebalancing}
-                className="px-5 py-2.5 rounded-lg text-xs font-bold uppercase bg-synthro-cyan text-black hover:bg-synthro-cyan/90 transition-all shadow-[0_0_15px_rgba(0,216,246,0.3)] disabled:opacity-50 flex items-center gap-2"
-              >
-                {rebalancing ? (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>Executing Batch...</span>
-                  </>
-                ) : (
-                  <span>Confirm & Execute Rebalance</span>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 1-Click Delta-Neutral Basis Trade Dispatcher Modal */}
+      <BasisExecutionModal
+        isOpen={basisModalOpen}
+        onClose={() => setBasisModalOpen(false)}
+        initialSymbol="SOL"
+        initialSizeUsdc={Math.max(50, Math.round(Math.abs(data?.netDirectionalDeltaUsd || 500)))}
+        onTradeSuccess={handleTradeSuccess}
+      />
     </div>
   );
 };
