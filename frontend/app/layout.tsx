@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Outfit, JetBrains_Mono } from "next/font/google";
+import { TickerBar } from "../components/TickerBar";
 import { Navbar } from "../components/Navbar";
 import { Web3Provider } from "../components/Web3Provider";
 import "./globals.css";
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="fixed bottom-0 left-0 z-[-1] w-[600px] h-[600px] bg-[rgba(13,242,164,0.06)] rounded-full blur-[140px] pointer-events-none transform -translate-x-1/3 translate-y-1/3" />
           
           <div className="flex-grow z-10 flex flex-col">
+            <TickerBar />
             <Navbar />
             {children}
           </div>
