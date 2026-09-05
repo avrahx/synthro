@@ -14,6 +14,9 @@ import { RegimeInspector } from "../components/RegimeInspector";
 import { TestnetDispatcher } from "../components/TestnetDispatcher";
 import { OnChainAudit } from "../components/OnChainAudit";
 import { ContractSpecViewer } from "../components/ContractSpecViewer";
+import { WalletAudit } from "../components/WalletAudit";
+import { useAccount } from "wagmi";
+import { useDemoMode } from "../components/DemoContext";
 import { BacktestRequest, BacktestResponse } from "../lib/types";
 import { runBacktest, BASE_PATH } from "../lib/api";
 import {
@@ -26,16 +29,19 @@ import {
   Vault,
   Terminal,
   Activity,
-  BrainCircuit
+  BrainCircuit,
+  Wallet
 } from "lucide-react";
 
-type Tab = "live" | "backtest" | "vault" | "execution" | "stress" | "ml_regime" | "audit";
+type Tab = "live" | "portfolio" | "ml_regime" | "backtest" | "vault" | "execution" | "audit" | "stress";
 
 export default function Dashboard() {
   const [tab, setTab] = useState<Tab>("live");
   const [result, setResult] = useState<BacktestResponse | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { isConnected, address } = useAccount();
+  const { isDemoMode } = useDemoMode();
 
   // Auto-run default backtest on first visit to backtest tab
   const handleRun = async (req: BacktestRequest) => {
@@ -103,9 +109,10 @@ export default function Dashboard() {
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print">
           {/* Tab Navigation */}
-          <div className="flex items-center gap-1 p-1 rounded-lg bg-bg-raised border border-border-subtle w-fit font-mono text-xs">
+          <div className="flex items-center gap-1 p-1 rounded-lg bg-bg-raised border border-border-subtle w-fit font-mono text-xs overflow-x-auto max-w-full">
             {([
               { id: "live" as Tab, label: "LIVE MARKET", icon: Sparkles },
+              { id: "portfolio" as Tab, label: "PORTFOLIO AUDIT", icon: Wallet, badge: isConnected || isDemoMode },
               { id: "ml_regime" as Tab, label: "ML REGIME ENGINE", icon: BrainCircuit },
               { id: "backtest" as Tab, label: "BACKTEST ENGINE", icon: BarChart3 },
               { id: "vault" as Tab, label: "VAULT SIMULATOR", icon: Vault },
@@ -114,14 +121,17 @@ export default function Dashboard() {
               { id: "stress" as Tab, label: "STRESS TEST", icon: Activity },
             ]).map((t) => (
               <button key={t.id} onClick={() => setTab(t.id)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-md transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-md transition-all whitespace-nowrap ${
                   tab === t.id
                     ? "bg-bg-elevated text-synthro-cyan font-bold border border-border-strong shadow-glow"
                     : "text-gray-400 hover:text-white"
                 }`}
               >
                 <t.icon className="w-3.5 h-3.5" />
-                {t.label}
+                <span>{t.label}</span>
+                {t.badge && tab !== t.id && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-synthro-mint animate-pulse" />
+                )}
               </button>
             ))}
           </div>
@@ -129,8 +139,34 @@ export default function Dashboard() {
           {tab === "backtest" && <ExportActions data={result} />}
         </div>
 
+        {/* Connected Wallet / Demo Mode Quick Action Banner */}
+        {(isConnected || isDemoMode) && tab !== "portfolio" && (
+          <div className="glass rounded-xl px-4 py-2.5 border border-synthro-cyan/30 bg-synthro-cyan/5 flex items-center justify-between font-mono text-xs animate-in fade-in">
+            <div className="flex items-center gap-2 text-gray-300">
+              <span className="w-2 h-2 rounded-full bg-synthro-mint animate-pulse" />
+              <span className="text-gray-400">
+                {isConnected ? "Wallet Connected:" : "Demo Mode Active:"}
+              </span>
+              <span className="text-white font-bold">
+                {isConnected && address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "Whale Portfolio (0xdf84...4261)"}
+              </span>
+              <span className="hidden lg:inline text-gray-500">— Real-time delta exposure, 1H funding carry, and liquidation health available.</span>
+            </div>
+            <button
+              onClick={() => setTab("portfolio")}
+              className="px-3 py-1 rounded bg-synthro-cyan/20 border border-synthro-cyan/40 text-synthro-cyan hover:bg-synthro-cyan/30 transition-all font-bold text-[11px] flex items-center gap-1 shrink-0"
+            >
+              <span>View Portfolio Audit</span>
+              <span>→</span>
+            </button>
+          </div>
+        )}
+
         {/* Live Market Tab */}
         {tab === "live" && <LiveFundingMatrix />}
+
+        {/* Portfolio Audit Tab */}
+        {tab === "portfolio" && <WalletAudit />}
 
         {/* Backtest Tab */}
         {tab === "backtest" && (

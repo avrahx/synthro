@@ -1,5 +1,5 @@
 import { http, createConfig } from 'wagmi';
-import { arbitrumSepolia } from 'wagmi/chains';
+import { arbitrum, arbitrumSepolia } from 'wagmi/chains';
 import { injected } from 'wagmi/connectors';
 
 export const hyperliquidTestnet = {
@@ -12,9 +12,10 @@ export const hyperliquidTestnet = {
 } as const;
 
 export const config = createConfig({
-  chains: [arbitrumSepolia, hyperliquidTestnet],
+  chains: [arbitrum, arbitrumSepolia, hyperliquidTestnet],
   connectors: [injected()],
   transports: {
+    [arbitrum.id]: http(),
     [arbitrumSepolia.id]: http(),
     [hyperliquidTestnet.id]: http(),
   },
