@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Navbar } from "../components/Navbar";
 import { MetricCards } from "../components/MetricCards";
 import { LiveFundingMatrix } from "../components/LiveFundingMatrix";
 import { BacktestSandbox } from "../components/BacktestSandbox";
@@ -74,8 +73,6 @@ export default function Dashboard() {
 
   return (
     <>
-      <Navbar />
-
       <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-6 space-y-6 grid-bg">
         {/* Banner */}
         <div 
