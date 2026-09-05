@@ -195,7 +195,7 @@ export function LandingHero({ onLaunch }: LandingHeroProps) {
           </button>
 
           <a
-            href="https://github.com/michaelboling777/Synthro"
+            href="https://github.com/avrahx/synthro"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 px-6 py-4 rounded-xl font-mono text-sm font-semibold text-gray-400 border border-white/10 hover:border-white/25 hover:text-white transition-all duration-300 backdrop-blur-sm"
