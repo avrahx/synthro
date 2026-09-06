@@ -212,23 +212,26 @@ function BentoCard({
       initial={{ opacity: 0, y: 40 }}
       animate={inView ? { opacity: 1, y: 0 } : {}}
       transition={{ duration: 0.6, delay: (index % 3) * 0.12, ease: "easeOut" }}
-      className={`group relative rounded-2xl p-6 flex flex-col gap-3 cursor-default transition-all duration-300 ${feature.colSpan ?? ""}`}
+      className={`group relative p-6 flex flex-col gap-3 cursor-default transition-all duration-200 ${feature.colSpan ?? ""}`}
       style={{
         background: feature.accentBg,
-        border: `1px solid ${feature.accent}20`,
+        border: `1px solid ${feature.accent}18`,
+        borderRadius: "4px",
       }}
       whileHover={{
-        scale: 1.015,
-        borderColor: `${feature.accent}50`,
-        boxShadow: `0 0 40px -15px ${feature.accent}50`,
-        transition: { duration: 0.25 },
+        borderColor: `${feature.accent}45`,
+        boxShadow: `0 0 32px -12px ${feature.accent}40`,
+        transition: { duration: 0.2 },
       }}
     >
-      {/* Label */}
+      {/* Protocol index label + category */}
       <div className="flex items-center gap-2">
+        <span className="protocol-label">
+          {String(index + 1).padStart(3, "0")} //
+        </span>
         <span
-          className="px-2 py-0.5 rounded font-mono text-[10px] font-bold uppercase tracking-wider"
-          style={{ color: feature.accent, background: `${feature.accent}15` }}
+          className="px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider"
+          style={{ color: feature.accent, background: `${feature.accent}12`, borderRadius: "3px", border: `1px solid ${feature.accent}20` }}
         >
           {feature.label}
         </span>
@@ -237,29 +240,23 @@ function BentoCard({
       {/* Icon + Title */}
       <div className="flex items-start gap-3">
         <div
-          className="p-2.5 rounded-xl shrink-0 mt-0.5"
-          style={{ background: `${feature.accent}12`, border: `1px solid ${feature.accent}25` }}
+          className="p-2.5 shrink-0 mt-0.5"
+          style={{ background: `${feature.accent}10`, border: `1px solid ${feature.accent}22`, borderRadius: "4px" }}
         >
           <Icon className="w-5 h-5" style={{ color: feature.accent }} />
         </div>
-        <h3 className="font-bold text-white text-base leading-snug mt-1 group-hover:text-opacity-100 transition-colors">
+        <h3 className="font-bold text-white text-base leading-snug mt-1 group-hover:text-opacity-100 transition-colors" style={{ letterSpacing: "-0.02em" }}>
           {feature.title}
         </h3>
       </div>
 
       {/* Description */}
-      <p className="text-gray-400 text-sm leading-relaxed pl-[52px]">
+      <p className="text-gray-400 text-sm leading-relaxed pl-[52px] font-light">
         {feature.description}
       </p>
 
       {/* Optional mini-visual */}
       {feature.visual && <div className="pl-[52px]">{feature.visual}</div>}
-
-      {/* Subtle corner accent */}
-      <div
-        className="absolute top-0 right-0 w-24 h-24 rounded-br-2xl rounded-tl-[100px] opacity-5 pointer-events-none"
-        style={{ background: feature.accent }}
-      />
     </motion.div>
   );
 }
@@ -277,13 +274,11 @@ function SectionHeader() {
       transition={{ duration: 0.7 }}
       className="text-center space-y-3 mb-12"
     >
-      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[#0df2a4]/25 bg-[#0df2a4]/5">
-        <div className="w-1.5 h-1.5 rounded-full bg-[#0df2a4] animate-pulse" />
-        <span className="font-mono text-xs text-[#0df2a4] font-semibold uppercase tracking-widest">
-          Feature Suite
-        </span>
+      {/* Protocol index label */}
+      <div className="flex justify-center">
+        <span className="protocol-label">002 // Feature Suite</span>
       </div>
-      <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
+      <h2 className="text-3xl sm:text-4xl font-black text-white" style={{ letterSpacing: "-0.03em" }}>
         Every Edge.{" "}
         <span
           style={{
@@ -296,7 +291,7 @@ function SectionHeader() {
           One Terminal.
         </span>
       </h2>
-      <p className="text-gray-500 text-base max-w-xl mx-auto">
+      <p className="text-gray-500 text-sm font-mono max-w-xl mx-auto">
         An institutional-grade quantitative stack — from live funding arbitrage to
         cryptographic on-chain verification.
       </p>

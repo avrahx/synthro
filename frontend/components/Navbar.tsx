@@ -64,7 +64,7 @@ export const Navbar: React.FC = () => {
         </Link>
 
         {/* Network Badge */}
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-bg-elevated border border-border-subtle text-[10px] font-mono">
+        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-bg-elevated border border-border-subtle text-[10px] font-mono" style={{ borderRadius: "4px" }}>
           <span
             className={`w-1.5 h-1.5 rounded-full ${
               health.network === "mainnet"
@@ -78,25 +78,27 @@ export const Navbar: React.FC = () => {
         </div>
 
         {/* Page Nav */}
-        <nav className="hidden md:flex items-center gap-1 p-1 rounded-lg bg-bg-elevated border border-border-subtle font-mono text-xs">
+        <nav className="hidden md:flex items-center gap-1 p-1 bg-bg-elevated border border-border-subtle font-mono text-xs" style={{ borderRadius: "4px" }}>
           <Link
             href="/"
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 transition-all ${
               !isTerminal
                 ? "bg-bg-raised text-synthro-cyan font-bold border border-border-strong shadow-glow"
                 : "text-gray-400 hover:text-white"
             }`}
+            style={{ borderRadius: "3px" }}
           >
             <Home className="w-3 h-3" />
             Home
           </Link>
           <Link
             href="/terminal"
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 transition-all ${
               isTerminal
                 ? "bg-bg-raised text-synthro-cyan font-bold border border-border-strong shadow-glow"
                 : "text-gray-400 hover:text-white"
             }`}
+            style={{ borderRadius: "3px" }}
           >
             <Terminal className="w-3 h-3" />
             Terminal
@@ -107,7 +109,7 @@ export const Navbar: React.FC = () => {
       {/* Status & Wallet Controls */}
       <div className="flex items-center gap-3">
         {/* Latency / Health */}
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-bg-elevated border border-border-subtle text-xs font-mono">
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-bg-elevated border border-border-subtle text-xs font-mono" style={{ borderRadius: "4px" }}>
           {health.status === "ONLINE" ? (
             <Wifi className="w-3.5 h-3.5 text-hl-green" />
           ) : (
@@ -131,11 +133,12 @@ export const Navbar: React.FC = () => {
         {/* Demo Mode Toggle */}
         <button
           onClick={toggleDemoMode}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full font-mono text-xs transition-all ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 font-mono text-xs transition-all ${
             isDemoMode
               ? "bg-hl-amber/15 border border-hl-amber/50 text-hl-amber shadow-[0_0_12px_rgba(245,158,11,0.2)] font-bold"
               : "bg-bg-elevated border border-border-subtle text-gray-400 hover:text-white hover:border-border-strong"
           }`}
+          style={{ borderRadius: "4px" }}
           title="Toggle Demo Mode to audit a simulated Hyperliquid whale portfolio"
         >
           <Sparkles className="w-3.5 h-3.5 text-hl-amber" />
@@ -148,15 +151,16 @@ export const Navbar: React.FC = () => {
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setDropdownOpen((prev) => !prev)}
-              className="flex items-center gap-2 px-3.5 py-1.5 rounded-full font-mono text-xs font-bold transition-all bg-synthro-mint/10 border border-synthro-mint/40 text-synthro-mint hover:bg-synthro-mint/20 shadow-[0_0_15px_rgba(13,242,164,0.15)]"
+              className="flex items-center gap-2 px-3.5 py-1.5 font-mono text-xs font-bold transition-all bg-synthro-mint/10 border border-synthro-mint/40 text-synthro-mint hover:bg-synthro-mint/20 shadow-[0_0_15px_rgba(13,242,164,0.15)]"
+              style={{ borderRadius: "4px" }}
             >
-              <div className="w-2 h-2 rounded-full bg-synthro-mint animate-pulse" />
+              <div className="w-2 h-2 rounded-[4px] bg-synthro-mint animate-pulse" />
               <span>{address.slice(0, 6)}...{address.slice(-4)}</span>
               <ChevronDown className={`w-3 h-3 transition-transform ${dropdownOpen ? "rotate-180" : ""}`} />
             </button>
 
             {dropdownOpen && (
-              <div className="absolute right-0 mt-2 w-56 rounded-xl bg-bg-raised border border-border-strong p-2 shadow-2xl z-50 font-mono text-xs animate-in fade-in slide-in-from-top-2 duration-150">
+              <div className="absolute right-0 mt-2 w-56 bg-bg-raised border border-border-strong p-2 shadow-2xl z-50 font-mono text-xs animate-in fade-in slide-in-from-top-2 duration-150" style={{ borderRadius: "4px" }}>
                 <div className="p-2 border-b border-border-subtle mb-1">
                   <div className="text-[10px] uppercase text-gray-500 font-semibold">Connected Account</div>
                   <div className="flex items-center justify-between mt-1 text-white font-mono">
@@ -181,7 +185,8 @@ export const Navbar: React.FC = () => {
                     disconnect();
                     setDropdownOpen(false);
                   }}
-                  className="w-full mt-1 flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-hl-rose hover:bg-hl-rose/10 transition-colors text-left"
+                  className="w-full mt-1 flex items-center gap-2 px-2.5 py-1.5 text-hl-rose hover:bg-hl-rose/10 transition-colors text-left"
+                  style={{ borderRadius: "4px" }}
                 >
                   <LogOut className="w-3.5 h-3.5" />
                   <span>Disconnect</span>
@@ -192,7 +197,8 @@ export const Navbar: React.FC = () => {
         ) : (
           <button
             onClick={() => connect({ connector: injected() })}
-            className="flex items-center gap-2 px-4 py-1.5 rounded-full font-mono text-xs font-bold transition-all bg-synthro-cyan/10 border border-synthro-cyan/40 hover:border-synthro-cyan text-synthro-cyan hover:bg-synthro-cyan/20 shadow-[0_0_15px_rgba(0,216,246,0.15)]"
+            className="flex items-center gap-2 px-4 py-1.5 font-mono text-xs font-bold transition-all bg-synthro-cyan/10 border border-synthro-cyan/40 hover:border-synthro-cyan text-synthro-cyan hover:bg-synthro-cyan/20 shadow-[0_0_15px_rgba(0,216,246,0.15)]"
+            style={{ borderRadius: "4px" }}
           >
             <Wallet className="w-3.5 h-3.5" />
             <span>Connect Wallet</span>

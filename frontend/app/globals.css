@@ -256,7 +256,7 @@
   align-items: center;
   gap: 10px;
   padding: 9px 12px;
-  border-radius: 8px;
+  border-radius: 4px;
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
@@ -327,7 +327,7 @@
   align-items: center;
   gap: 5px;
   padding: 3px 9px;
-  border-radius: 999px;
+  border-radius: 4px;
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 700;
@@ -335,9 +335,9 @@
   text-transform: uppercase;
 }
 
-.status-pill.online  { background: rgba(13,242,164,0.12); color: #0df2a4; border: 1px solid rgba(13,242,164,0.3); }
-.status-pill.offline { background: rgba(244,63,94,0.12);  color: #f43f5e; border: 1px solid rgba(244,63,94,0.3); }
-.status-pill.warn    { background: rgba(251,191,36,0.12); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }
+.status-pill.online  { background: rgba(13,242,164,0.08); color: #0df2a4; border: 1px solid rgba(13,242,164,0.3); }
+.status-pill.offline { background: rgba(244,63,94,0.08);  color: #f43f5e; border: 1px solid rgba(244,63,94,0.3); }
+.status-pill.warn    { background: rgba(251,191,36,0.08); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }
 
 /* ── Metric Badge ─────────────────────────────────────────────────────────── */
 .metric-badge {
@@ -346,13 +346,120 @@
   font-size: 11px;
   font-weight: 600;
   padding: 2px 8px;
-  border-radius: 5px;
+  border-radius: 3px;
   border: 1px solid var(--border-dim);
 }
 
 .metric-badge.positive { color: #0df2a4; background: rgba(13,242,164,0.08); border-color: rgba(13,242,164,0.2); }
 .metric-badge.negative { color: #f43f5e; background: rgba(244,63,94,0.08);  border-color: rgba(244,63,94,0.2); }
 .metric-badge.neutral  { color: #fbbf24; background: rgba(251,191,36,0.08); border-color: rgba(251,191,36,0.2); }
+
+/* ── Protocol Index Label ─────────────────────────────────────────────────── */
+/* Usage: <span class="protocol-label">001 // MARKET MICROSTRUCTURE</span>     */
+.protocol-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.22);
+  line-height: 1;
+}
+
+/* ── Protocol Card ────────────────────────────────────────────────────────── */
+/* Replaces glass/card-terminal for the industrial precision look             */
+.card-protocol {
+  background: rgba(10,14,22,0.85);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 4px;
+  box-shadow:
+    0 0 0 0.5px rgba(255,255,255,0.03),
+    0 4px 24px rgba(0,0,0,0.5);
+  transition: border-color 0.15s ease;
+}
+
+.card-protocol:hover {
+  border-color: rgba(13,242,164,0.18);
+}
+
+/* ── Protocol Buttons ─────────────────────────────────────────────────────── */
+/* Primary: filled mint → dark text, no rounded corners, hairline stroke      */
+.btn-protocol-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #06080d;
+  background: var(--mint);
+  border: 1px solid var(--mint);
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.btn-protocol-primary:hover {
+  background: #0ff5aa;
+  border-color: #0ff5aa;
+  box-shadow: 0 0 20px -4px rgba(13,242,164,0.5);
+}
+
+/* Secondary: transparent with hairline mint border                           */
+.btn-protocol-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.55);
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.12);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.btn-protocol-secondary:hover {
+  color: rgba(255,255,255,0.9);
+  border-color: rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.03);
+}
+
+/* Ghost Mint — used for inline actions / table row actions                   */
+.btn-protocol-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--mint);
+  background: rgba(13,242,164,0.06);
+  border: 1px solid rgba(13,242,164,0.2);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  text-decoration: none;
+}
+
+.btn-protocol-ghost:hover {
+  background: rgba(13,242,164,0.12);
+  border-color: rgba(13,242,164,0.4);
+}
 
 /* ── Responsive Workstation ───────────────────────────────────────────────── */
 @media (max-width: 1200px) {

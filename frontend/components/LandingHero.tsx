@@ -13,14 +13,14 @@ const Hero3DCanvas = dynamic(
 
 const STAT_ITEMS = [
   { label: "Annualized Alpha", value: "+34.2%", color: "text-[#0df2a4]" },
-  { label: "Sharpe Ratio", value: "4.81", color: "text-[#00d8f6]" },
-  { label: "Max Drawdown", value: "-2.3%", color: "text-[#a78bfa]" },
-  { label: "Win Rate", value: "91.4%", color: "text-[#0df2a4]" },
+  { label: "Sharpe Ratio",     value: "4.81",   color: "text-[#00d8f6]" },
+  { label: "Max Drawdown",     value: "-2.3%",  color: "text-[#a78bfa]" },
+  { label: "Win Rate",         value: "91.4%",  color: "text-[#0df2a4]" },
 ];
 
 const PILL_ITEMS = [
-  { icon: Zap, label: "HyperCore L1 Engine" },
-  { icon: Shield, label: "Delta-Neutral" },
+  { icon: Zap,        label: "HyperCore L1 Engine" },
+  { icon: Shield,     label: "Delta-Neutral" },
   { icon: TrendingUp, label: "Live Funding Harvest" },
 ];
 
@@ -39,24 +39,42 @@ export function LandingHero() {
         }}
       />
 
-      {/* Top mint glow blob */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[300px] pointer-events-none"
-        style={{ background: "radial-gradient(ellipse at center, rgba(13,242,164,0.1) 0%, transparent 70%)" }} />
+      {/* Top mint glow — very subtle */}
+      <div
+        className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[260px] pointer-events-none"
+        style={{ background: "radial-gradient(ellipse at center, rgba(13,242,164,0.07) 0%, transparent 70%)" }}
+      />
 
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center text-center px-6 gap-8 max-w-5xl mx-auto">
 
-        {/* Top badge row */}
+        {/* Protocol index label */}
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
+          transition={{ duration: 0.5 }}
+        >
+          <span className="protocol-label">001 // Quantitative Basis Engine</span>
+        </motion.div>
+
+        {/* Top tag row — industrial sharp edges */}
+        <motion.div
+          initial={{ opacity: 0, y: -16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.05 }}
           className="flex flex-wrap items-center justify-center gap-2"
         >
           {PILL_ITEMS.map(({ icon: Icon, label }) => (
             <span
               key={label}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-[#0df2a4]/30 bg-[#0df2a4]/5 text-[#0df2a4] font-mono text-xs font-semibold backdrop-blur-sm"
+              className="flex items-center gap-1.5 px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-widest"
+              style={{
+                background: "rgba(13,242,164,0.04)",
+                border: "1px solid rgba(13,242,164,0.2)",
+                borderRadius: "4px",
+                color: "rgba(13,242,164,0.8)",
+                letterSpacing: "0.1em",
+              }}
             >
               <Icon className="w-3 h-3" />
               {label}
@@ -71,7 +89,7 @@ export function LandingHero() {
           transition={{ duration: 0.8, delay: 0.1 }}
           className="space-y-3"
         >
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-[1.05]">
+          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black leading-[1.05]" style={{ letterSpacing: "-0.03em" }}>
             <span className="text-white">The Quantitative </span>
             <br />
             <span
@@ -92,7 +110,7 @@ export function LandingHero() {
           </p>
         </motion.div>
 
-        {/* Floating mockup card */}
+        {/* Floating mockup card — hard edges */}
         <motion.div
           initial={{ opacity: 0, y: 40, rotateX: 12 }}
           animate={{ opacity: 1, y: 0, rotateX: 6 }}
@@ -103,26 +121,31 @@ export function LandingHero() {
           <motion.div
             animate={{ y: [0, -8, 0] }}
             transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-            className="relative rounded-2xl overflow-hidden"
+            className="relative overflow-hidden"
             style={{
-              background: "linear-gradient(135deg, rgba(13,242,164,0.06) 0%, rgba(0,216,246,0.04) 50%, rgba(18,23,34,0.9) 100%)",
-              border: "1px solid rgba(13,242,164,0.2)",
-              boxShadow: "0 0 80px -20px rgba(13,242,164,0.25), 0 0 40px -10px rgba(0,216,246,0.15), inset 0 1px 0 rgba(255,255,255,0.05)",
+              background: "linear-gradient(135deg, rgba(13,242,164,0.04) 0%, rgba(0,216,246,0.03) 50%, rgba(10,14,22,0.95) 100%)",
+              border: "1px solid rgba(13,242,164,0.18)",
+              borderRadius: "4px",
+              boxShadow: "0 0 60px -20px rgba(13,242,164,0.2), inset 0 1px 0 rgba(255,255,255,0.04)",
             }}
           >
             {/* Mockup header bar */}
-            <div className="flex items-center gap-1.5 px-4 py-3 border-b border-white/5">
-              <div className="w-2.5 h-2.5 rounded-full bg-[#F43F5E]/70" />
-              <div className="w-2.5 h-2.5 rounded-full bg-[#FBBF24]/70" />
-              <div className="w-2.5 h-2.5 rounded-full bg-[#0df2a4]/70" />
-              <div className="ml-2 flex-1 rounded bg-white/5 h-4 flex items-center px-2">
+            <div
+              className="flex items-center gap-1.5 px-4 py-3"
+              style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+            >
+              <div className="w-2 h-2 rounded-sm bg-[#F43F5E]/60" />
+              <div className="w-2 h-2 rounded-sm bg-[#FBBF24]/60" />
+              <div className="w-2 h-2 rounded-sm bg-[#0df2a4]/60" />
+              <div className="ml-2 flex-1 h-4 flex items-center px-2"
+                style={{ background: "rgba(255,255,255,0.04)", borderRadius: "2px" }}>
                 <span className="font-mono text-[10px] text-gray-500">app.synthro.finance — HYPERCORE L1</span>
               </div>
-              <div className="w-2 h-2 rounded-full bg-[#0df2a4] animate-pulse" />
+              <div className="w-2 h-2 bg-[#0df2a4] animate-pulse" style={{ borderRadius: "2px" }} />
             </div>
 
             {/* Mockup stats grid */}
-            <div className="grid grid-cols-4 gap-px bg-white/5 p-px">
+            <div className="grid grid-cols-4 gap-px" style={{ background: "rgba(255,255,255,0.04)" }}>
               {STAT_ITEMS.map(({ label, value, color }) => (
                 <div key={label} className="bg-[#08101a] p-4 flex flex-col gap-1">
                   <span className={`font-mono text-lg font-black ${color}`}>{value}</span>
@@ -142,12 +165,13 @@ export function LandingHero() {
                       animate={{ scaleY: 1 }}
                       transition={{ delay: 0.5 + i * 0.04, duration: 0.4, ease: "easeOut" }}
                       style={{ originY: 1, height: `${h * 100}%` }}
-                      className="flex-1 rounded-t"
+                      className="flex-1"
                     >
                       <div
-                        className="w-full h-full rounded-t"
+                        className="w-full h-full"
                         style={{
                           background: `linear-gradient(180deg, ${i % 2 === 0 ? "#0df2a4" : "#00d8f6"}66 0%, ${i % 2 === 0 ? "#0df2a4" : "#00d8f6"}22 100%)`,
+                          borderRadius: "2px 2px 0 0",
                         }}
                       />
                     </motion.div>
@@ -163,31 +187,23 @@ export function LandingHero() {
           </motion.div>
         </motion.div>
 
-        {/* CTA row */}
+        {/* CTA row — protocol buttons */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.5 }}
           className="flex flex-col sm:flex-row items-center gap-3"
         >
-          <Link
-            href="/terminal"
-            className="group flex items-center gap-2 px-8 py-4 rounded-xl font-bold text-sm font-mono transition-all duration-300"
-            style={{
-              background: "linear-gradient(135deg, #0df2a4 0%, #00d8f6 100%)",
-              color: "#06080D",
-              boxShadow: "0 0 30px -6px rgba(13,242,164,0.5)",
-            }}
-          >
+          <Link href="/terminal" className="btn-protocol-primary">
             Launch Terminal
-            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+            <ArrowRight className="w-4 h-4" />
           </Link>
 
           <a
             href="https://github.com/avrahx/synthro"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 px-6 py-4 rounded-xl font-mono text-sm font-semibold text-gray-400 border border-white/10 hover:border-white/25 hover:text-white transition-all duration-300 backdrop-blur-sm"
+            className="btn-protocol-secondary"
           >
             View on GitHub
           </a>
@@ -200,7 +216,7 @@ export function LandingHero() {
           transition={{ delay: 1.2, duration: 1 }}
           className="flex flex-col items-center gap-1.5 mt-4"
         >
-          <span className="font-mono text-[10px] text-gray-600 uppercase tracking-[0.2em]">Scroll to explore</span>
+          <span className="protocol-label">Scroll to explore</span>
           <motion.div
             animate={{ y: [0, 6, 0] }}
             transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}

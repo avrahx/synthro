@@ -53,11 +53,11 @@ const TABS: TabDef[] = [
   { id: "stress",    label: "Stress Test",        icon: Activity,    section: "risk" },
 ];
 
-const SECTIONS: { id: string; label: string }[] = [
-  { id: "market",    label: "Market Data" },
-  { id: "analysis",  label: "Quantitative" },
-  { id: "execution", label: "Execution" },
-  { id: "risk",      label: "Risk & Audit" },
+const SECTIONS: { id: string; label: string; index: string }[] = [
+  { id: "market",    label: "Market Data",   index: "001" },
+  { id: "analysis",  label: "Quantitative",  index: "002" },
+  { id: "execution", label: "Execution",     index: "003" },
+  { id: "risk",      label: "Risk & Audit",  index: "004" },
 ];
 
 // ── Default Backtest Params ────────────────────────────────────────────────
@@ -148,7 +148,10 @@ export default function TerminalPage() {
           const sectionTabs = TABS.filter((t) => t.section === sec.id);
           return (
             <div key={sec.id}>
-              <div className="sidebar-section-label">{sec.label}</div>
+              <div className="sidebar-section-label">
+                <span style={{ opacity: 0.5, marginRight: "6px" }}>{sec.index} //</span>
+                {sec.label}
+              </div>
               {sectionTabs.map((t) => (
                 <button
                   key={t.id}
@@ -198,7 +201,14 @@ export default function TerminalPage() {
         {/* ── Page title bar ──────────────────────────────────────────────── */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-lg font-bold text-white tracking-tight">
+            <div className="flex items-center gap-3 mb-1.5">
+              <span className="protocol-label">
+                {SECTIONS.find((s) => TABS.find((t) => t.id === tab)?.section === s.id)?.index ?? "000"}
+                {" // "}
+                {TABS.find((t) => t.id === tab)?.label?.toUpperCase() ?? "TERMINAL"}
+              </span>
+            </div>
+            <h1 className="text-lg font-bold text-white" style={{ letterSpacing: "-0.02em" }}>
               {TABS.find((t) => t.id === tab)?.label ?? "Terminal"}
             </h1>
             <p className="text-[11px] font-mono text-gray-600 mt-0.5">
@@ -226,8 +236,7 @@ export default function TerminalPage() {
             </div>
             <button
               onClick={() => setTab("portfolio")}
-              className="shrink-0 px-3 py-1 rounded-lg text-[11px] font-bold transition-all"
-              style={{ background: "rgba(13,242,164,0.12)", color: "var(--mint)", border: "1px solid rgba(13,242,164,0.3)" }}
+              className="btn-protocol-ghost shrink-0"
             >
               View Audit →
             </button>
@@ -338,7 +347,7 @@ export default function TerminalPage() {
                 <CostBridge metrics={m} />
 
                 {/* Attribution Grid */}
-                <div className="card-terminal rounded-2xl p-6">
+                <div className="card-protocol p-6">
                   <div className="flex items-center gap-3 mb-5">
                     <h3 className="font-mono text-xs font-bold text-white uppercase tracking-widest">
                       Asset PnL Attribution
@@ -349,7 +358,7 @@ export default function TerminalPage() {
                     {result.attribution.map((a) => (
                       <div
                         key={a.asset}
-                        className="card-terminal rounded-xl p-4 space-y-2"
+                        className="card-protocol p-4 space-y-2"
                       >
                         <div className="flex items-center justify-between pb-2"
                           style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
@@ -479,11 +488,12 @@ export default function TerminalPage() {
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg mb-1 text-[11px] font-mono font-semibold transition-all ${
+                className={`w-full flex items-center gap-2 px-3 py-2 mb-1 text-[11px] font-mono font-semibold transition-all ${
                   tab === t
-                    ? "bg-[rgba(13,242,164,0.08)] text-[var(--mint)] border border-[rgba(13,242,164,0.2)]"
-                    : "text-gray-500 hover:text-gray-300 hover:bg-[rgba(255,255,255,0.03)]"
+                    ? "text-[var(--mint)] border border-[rgba(13,242,164,0.2)] bg-[rgba(13,242,164,0.06)]"
+                    : "text-gray-500 hover:text-gray-300 hover:bg-[rgba(255,255,255,0.03)] border border-transparent"
                 }`}
+                style={{ borderRadius: "4px" }}
               >
                 <def.icon className="w-3.5 h-3.5 shrink-0" />
                 {def.label}
