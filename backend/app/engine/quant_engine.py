@@ -381,27 +381,29 @@ class QuantEngine:
         # Polars-computed period returns array
         rets = portfolio["period_ret"].to_numpy()
         mean_r = float(rets.mean()) if len(rets) else 0.0
-        std_r = float(rets.std()) if len(rets) > 1 else 1e-10
+        std_r = float(rets.std()) if len(rets) > 1 else 0.0
 
-        sharpe_raw = (mean_r / std_r * ANN_FACTOR) if std_r > 1e-10 else 0.0
+        sharpe_raw = (mean_r / std_r * ANN_FACTOR) if std_r > 1e-8 else 0.0
         sharpe = sharpe_raw if math.isfinite(sharpe_raw) else 0.0
 
         downside = rets[rets < 0]
         if len(downside) > 0:
             ds_std = float((downside**2).mean() ** 0.5)
-            sortino_raw = (mean_r / ds_std * ANN_FACTOR) if ds_std > 1e-10 else sharpe * 1.4
+            sortino_raw = (mean_r / ds_std * ANN_FACTOR) if ds_std > 1e-8 else (sharpe * 1.4 if sharpe > 0 else 0.0)
             sortino = sortino_raw if math.isfinite(sortino_raw) else 0.0
         else:
             # No negative returns — all-positive equity curve; Sortino is undefined/infinite;
             # return a conservative multiple of Sharpe rather than inf
-            sortino = sharpe * 1.4
+            sortino = (sharpe * 1.4) if math.isfinite(sharpe) and sharpe > 0 else 0.0
 
         drawdowns = portfolio["dd_pct"].to_numpy()
         max_dd = float(drawdowns.max()) if len(drawdowns) else 0.0
         # Monotonically increasing curve — guarantee clean 0.0 output
-        if not math.isfinite(max_dd) or max_dd < 0:
+        if not math.isfinite(max_dd) or max_dd <= 0:
             max_dd = 0.0
         calmar = (cagr / max_dd) if max_dd > 0.01 else 0.0
+        if not math.isfinite(calmar):
+            calmar = 0.0
 
         # Ulcer Index
         ulcer = float(((drawdowns**2).mean()) ** 0.5) if len(drawdowns) else 0.0
@@ -420,6 +422,14 @@ class QuantEngine:
         total_slippage = float(last["cum_slippage"][0])
         total_borrow = float(last["cum_borrow"][0])
         gross_yield = total_funding
+
+        # Turnover and Fee Drag calculation
+        # Total traded volume is sum of turnover for both spot + perp legs (x2)
+        total_volume = float((df["turnover"].sum()) * 2.0)
+        avg_equity = float(portfolio["nav"].mean()) if len(portfolio) else ic
+        annualized_volume = total_volume * (HOURS_PER_YEAR / max(n_epochs, 1))
+        turnover_ratio = (annualized_volume / avg_equity) if avg_equity > 0 else 0.0
+        fee_drag_bps = ((total_fees + total_slippage) / total_volume * 10000.0) if total_volume > 0 else 0.0
 
         # Longest underwater streak
         underwater = 0
@@ -456,6 +466,13 @@ class QuantEngine:
             "net_profit_usd": round(net_profit, 2),
             "final_nav": round(final_nav, 2),
             "initial_capital": round(ic, 2),
+            "turnover_ratio": round(float(turnover_ratio), 2),
+            "fee_drag_bps": round(float(fee_drag_bps), 1),
+            "gross_funding_yield_usdc": round(gross_yield, 2),
+            "exchange_taker_fees_usdc": round(total_fees, 2),
+            "slippage_drag_usdc": round(total_slippage, 2),
+            "spot_borrow_costs_usdc": round(total_borrow, 2),
+            "net_realized_yield_usdc": round(net_profit, 2),
         }
 
     # ── Output Builders ───────────────────────────────────────────────────
@@ -546,4 +563,8 @@ class QuantEngine:
             "total_funding_usd": 0.0, "total_fees_usd": 0.0,
             "total_slippage_usd": 0.0, "margin_borrow_cost_usd": 0.0,
             "net_profit_usd": 0.0, "final_nav": 0.0, "initial_capital": 0.0,
+            "turnover_ratio": 0.0, "fee_drag_bps": 0.0,
+            "gross_funding_yield_usdc": 0.0, "exchange_taker_fees_usdc": 0.0,
+            "slippage_drag_usdc": 0.0, "spot_borrow_costs_usdc": 0.0,
+            "net_realized_yield_usdc": 0.0,
         }

@@ -293,3 +293,62 @@ class TestQuantEngine:
         assert apr < 10_000.0, (
             f"Extreme funding not clipped correctly: APR={apr:.1f}% (expected < 10,000%)"
         )
+
+    def test_zero_variance_ratios_safe_zero(self):
+        """
+        When funding rate is flat 0.0 and fees are 0.0, std_dev = 0.0, max_dd = 0.0.
+        Sharpe, Sortino, and Calmar must safely return 0.0 rather than NaN or inf.
+        """
+        cfg = _cfg(taker_fee_bps=0.0, slippage_bps=0.0, margin_borrow_apr=0.0)
+        data = [
+            {
+                "epoch": i,
+                "timestamp": f"2026-01-01 {i % 24:02d}:00:00",
+                "asset": "BTC",
+                "mark_price": 50_000.0,
+                "funding_rate_1h": 0.0,
+                "cex_funding_rate_8h": 0.0,
+                "basis_bps": 0.0,
+            }
+            for i in range(20)
+        ]
+        result = QuantEngine(cfg).run(data)
+        summary = result.metrics
+        assert summary["sharpe_ratio"] == 0.0
+        assert summary["sortino_ratio"] == 0.0
+        assert summary["calmar_ratio"] == 0.0
+        assert summary["max_drawdown_pct"] == 0.0
+
+    def test_waterfall_metrics_and_turnover(self):
+        """
+        Verify that Net Realized Yield strictly equals:
+        Gross Funding - Taker Fees - Slippage - Borrow Costs.
+        Also verify turnover_ratio > 0.0 and finite.
+        """
+        cfg = _cfg(taker_fee_bps=5.0, slippage_bps=2.5, margin_borrow_apr=0.05)
+        data = [
+            {
+                "epoch": i,
+                "timestamp": f"2026-01-01 {i % 24:02d}:00:00",
+                "asset": "BTC",
+                "mark_price": 60_000.0,
+                "funding_rate_1h": 0.0001,
+                "cex_funding_rate_8h": 0.0005,
+                "basis_bps": 0.0,
+            }
+            for i in range(48)
+        ]
+        result = QuantEngine(cfg).run(data)
+        summary = result.metrics
+
+        expected_net = (
+            summary["gross_funding_yield_usdc"]
+            - summary["exchange_taker_fees_usdc"]
+            - summary["slippage_drag_usdc"]
+            - summary["spot_borrow_costs_usdc"]
+        )
+        assert abs(summary["net_realized_yield_usdc"] - expected_net) < 1e-4
+        assert summary["turnover_ratio"] >= 0.0
+        assert math.isfinite(summary["turnover_ratio"])
+        assert math.isfinite(summary["fee_drag_bps"])
+

@@ -116,23 +116,36 @@ export interface ExecutionReceipt {
 export function buildBasisOrderPlan(
   symbol: string,
   notionalUsdc: number,
-  customMarkPrice?: number
+  customMarkPrice?: number,
+  customSpotPrice?: number
 ): BasisTradePlan {
   const asset = SUPPORTED_BASIS_ASSETS[symbol] || SUPPORTED_BASIS_ASSETS.SOL;
-  const price = customMarkPrice && customMarkPrice > 0 ? customMarkPrice : asset.defaultPrice;
-
-  if (notionalUsdc < 10) {
-    throw new Error("Minimum order notional is $10.00 USDC.");
-  }
+  const perpPrice = customMarkPrice && customMarkPrice > 0 ? customMarkPrice : asset.defaultPrice;
+  const spotPrice = customSpotPrice && customSpotPrice > 0 ? customSpotPrice : perpPrice;
 
   const halfNotional = notionalUsdc / 2;
-  const rawSize = halfNotional / price;
-  const formattedSize = rawSize.toFixed(asset.szDecimals);
+  // Hyperliquid L1 requires minimum $10.00 notional per leg
+  if (halfNotional < 10) {
+    throw new Error("Minimum order notional per leg is $10.00 USDC (minimum total capital: $20.00 USDC).");
+  }
+
+  const rawSpotSize = halfNotional / spotPrice;
+  const rawPerpSize = halfNotional / perpPrice;
+  const formattedSpotSize = rawSpotSize.toFixed(asset.szDecimals);
+  const formattedPerpSize = rawPerpSize.toFixed(asset.szDecimals);
+  const parsedSpotSize = parseFloat(formattedSpotSize);
+  const parsedPerpSize = parseFloat(formattedPerpSize);
 
   // Spot Buy limit slightly above market for instantaneous taker fill
-  const spotLimit = (price * 1.0015).toFixed(asset.priceDecimals);
+  const spotLimit = (spotPrice * 1.0015).toFixed(asset.priceDecimals);
   // Perp Short limit slightly below market for instantaneous taker fill
-  const perpLimit = (price * 0.9985).toFixed(asset.priceDecimals);
+  const perpLimit = (perpPrice * 0.9985).toFixed(asset.priceDecimals);
+
+  // Strictly calculate Net Delta from the actual formatted executable sizes
+  const spotNotionalActual = parsedSpotSize * spotPrice;
+  const perpNotionalActual = parsedPerpSize * perpPrice;
+  const deltaNet = spotNotionalActual - perpNotionalActual;
+  const formattedDelta = Math.abs(deltaNet) < 1e-6 ? "0.0000" : deltaNet.toFixed(4);
 
   // Estimated annual funding carry on the short perp leg
   const estAnnualIncome = halfNotional * (asset.estFundingApr / 100);
@@ -142,12 +155,12 @@ export function buildBasisOrderPlan(
     totalNotionalUsdc: notionalUsdc,
     spotNotionalUsdc: halfNotional,
     perpNotionalUsdc: halfNotional,
-    markPrice: price,
-    spotSize: formattedSize,
-    perpSize: formattedSize,
+    markPrice: perpPrice,
+    spotSize: formattedSpotSize,
+    perpSize: formattedPerpSize,
     spotLimitPrice: spotLimit,
     perpLimitPrice: perpLimit,
-    netDelta: "0.0000",
+    netDelta: formattedDelta,
     estAnnualIncomeUsdc: estAnnualIncome,
     feeAndSlippageBps: 3.5, // 0.035% modeled impact
   };

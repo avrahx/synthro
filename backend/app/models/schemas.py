@@ -103,6 +103,13 @@ class SummaryMetrics(BaseModel):
     net_profit_usd: float
     final_nav: float
     initial_capital: float
+    turnover_ratio: float = 0.0
+    fee_drag_bps: float = 0.0
+    gross_funding_yield_usdc: float = 0.0
+    exchange_taker_fees_usdc: float = 0.0
+    slippage_drag_usdc: float = 0.0
+    spot_borrow_costs_usdc: float = 0.0
+    net_realized_yield_usdc: float = 0.0
 
 
 class AssetAttribution(BaseModel):

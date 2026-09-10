@@ -75,7 +75,7 @@ export const BasisExecutionModal: React.FC<BasisExecutionModalProps> = ({
 
   let plan: BasisTradePlan | null = null;
   try {
-    plan = buildBasisOrderPlan(selectedSymbol, Math.max(10, notionalUsdc));
+    plan = buildBasisOrderPlan(selectedSymbol, Math.max(20, notionalUsdc));
   } catch (err: any) {
     // handled below
   }

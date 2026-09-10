@@ -18,11 +18,23 @@ from datetime import datetime, timedelta
 from typing import Any
 
 import httpx
+import math
 import numpy as np
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_float(val: Any, default: float = 0.0) -> float:
+    """Safely convert any raw HL field into a finite float, preventing NaN and crashes."""
+    if val is None:
+        return default
+    try:
+        f = float(val)
+        return f if math.isfinite(f) else default
+    except (ValueError, TypeError):
+        return default
 
 # Retry configuration
 _MAX_RETRIES: int = 3
@@ -229,18 +241,20 @@ class HyperliquidClient:
     def _parse_live_funding(
         self, meta: list, spot_meta: list | None, target_assets: list[str],
     ) -> list[dict[str, Any]]:
-        universe_meta = meta[0].get("universe", [])
-        asset_ctxs = meta[1] if len(meta) > 1 else []
+        universe_meta = meta[0].get("universe", []) if len(meta) > 0 and isinstance(meta[0], dict) else []
+        asset_ctxs = meta[1] if len(meta) > 1 and isinstance(meta[1], list) else []
 
         spot_prices: dict[str, float] = {}
         if spot_meta and isinstance(spot_meta, list) and len(spot_meta) > 1:
-            for idx, item in enumerate(spot_meta[0].get("universe", [])):
-                if idx < len(spot_meta[1]):
-                    spot_prices[item.get("name", "")] = float(
-                        spot_meta[1][idx].get("markPx", 0.0)
+            spot_universe = spot_meta[0].get("universe", []) if isinstance(spot_meta[0], dict) else []
+            spot_ctxs = spot_meta[1] if isinstance(spot_meta[1], list) else []
+            for idx, item in enumerate(spot_universe):
+                if idx < len(spot_ctxs) and isinstance(item, dict):
+                    spot_prices[item.get("name", "")] = _safe_float(
+                        spot_ctxs[idx].get("markPx", 0.0) if isinstance(spot_ctxs[idx], dict) else 0.0
                     )
 
-        name_map = {item["name"]: idx for idx, item in enumerate(universe_meta)}
+        name_map = {item["name"]: idx for idx, item in enumerate(universe_meta) if isinstance(item, dict) and "name" in item}
         results = []
 
         for asset in target_assets:
@@ -248,10 +262,16 @@ class HyperliquidClient:
             if idx is None or idx >= len(asset_ctxs):
                 continue
             ctx = asset_ctxs[idx]
-            funding_1h = float(ctx.get("funding", 0.0))
-            mark_price = float(ctx.get("markPx", 0.0))
-            oi_usd = float(ctx.get("openInterest", 0.0)) * mark_price
+            if not isinstance(ctx, dict):
+                continue
+
+            funding_1h = _safe_float(ctx.get("funding", 0.0))
+            mark_price = _safe_float(ctx.get("markPx", 0.0))
+            raw_oi = _safe_float(ctx.get("openInterest", 0.0))
+            oi_usd = raw_oi * mark_price
             spot_price = spot_prices.get(asset, mark_price)
+            if spot_price <= 0.0:
+                spot_price = mark_price
 
             cex_8h = CEX_FUNDING_BASELINES_8H.get(asset, 0.0003)
             hl_ann = funding_1h * 8760 * 100

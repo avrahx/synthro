@@ -44,9 +44,9 @@ export function calculateStressState(params: StressParams): StressResult {
   const margin_balance = initial_margin + perp_unrealized_pnl;
   const maintenance_margin = perp_notional * (1 + spot_price_shock_pct) * maintenance_margin_req;
 
-  let health_factor = 999;
+  let health_factor = 999.0;
   if (maintenance_margin > 0) {
-    health_factor = margin_balance / maintenance_margin;
+    health_factor = margin_balance > 0 ? margin_balance / maintenance_margin : 0.0;
   }
 
   let health_status: "SAFE" | "WARNING" | "LIQUIDATION" = "SAFE";
@@ -60,13 +60,13 @@ export function calculateStressState(params: StressParams): StressResult {
   // Liq happens when MarginBalance(S) = MMR(S)
   // InitMargin - PerpNotional * (S + B) = PerpNotional * (1 + S) * MMR_req
   // S_liq = ( (InitMargin / PerpNotional) - B - MMR_req ) / (1 + MMR_req)
-  const marginRatio = initial_margin / perp_notional;
+  const marginRatio = perp_notional > 0 ? initial_margin / perp_notional : 1.0;
   const s_liq = (marginRatio - basis_divergence - maintenance_margin_req) / (1 + maintenance_margin_req);
   
   const current_price_ratio = 1 + spot_price_shock_pct;
   const liq_price_ratio = 1 + s_liq;
   
-  let liquidation_distance_pct = 0;
+  let liquidation_distance_pct = 999.0;
   if (current_price_ratio > 0) {
     liquidation_distance_pct = ((liq_price_ratio - current_price_ratio) / current_price_ratio) * 100;
   }

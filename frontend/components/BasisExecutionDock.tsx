@@ -23,7 +23,7 @@ export const BasisExecutionDock: React.FC<BasisExecutionDockProps> = ({
   // Derive plan from orderRouter
   let plan: ReturnType<typeof buildBasisOrderPlan> | null = null;
   try {
-    plan = buildBasisOrderPlan(symbol, Math.max(10, capitalUsdc));
+    plan = buildBasisOrderPlan(symbol, Math.max(20, capitalUsdc));
   } catch {
     // fallback
   }

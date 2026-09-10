@@ -9,11 +9,11 @@ interface Props {
 }
 
 export const CostBridge: React.FC<Props> = ({ metrics }) => {
-  const gross = metrics.gross_funding_yield_usdc || 1; // avoid div by 0
-  const fees = metrics.exchange_taker_fees_usdc;
-  const slippage = metrics.slippage_drag_usdc;
-  const borrow = metrics.spot_borrow_costs_usdc;
-  const net = metrics.net_realized_yield_usdc;
+  const gross = (metrics.gross_funding_yield_usdc ?? metrics.total_funding_usd ?? metrics.gross_yield_usd) || 1;
+  const fees = metrics.exchange_taker_fees_usdc ?? metrics.total_fees_usd ?? 0;
+  const slippage = metrics.slippage_drag_usdc ?? metrics.total_slippage_usd ?? 0;
+  const borrow = metrics.spot_borrow_costs_usdc ?? metrics.margin_borrow_cost_usd ?? 0;
+  const net = metrics.net_realized_yield_usdc ?? metrics.net_profit_usd ?? (gross - fees - slippage - borrow);
 
   // Calculate percentages relative to gross yield (total 100%)
   const pctFees = Math.max(0, (fees / gross) * 100);
@@ -129,7 +129,7 @@ export const CostBridge: React.FC<Props> = ({ metrics }) => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-border-subtle">
         <div className="p-3 rounded-lg bg-bg-elevated border border-border-subtle/50 space-y-1">
           <div className="text-[10px] text-gray-500 font-mono font-bold uppercase tracking-wider">Portfolio Turnover</div>
-          <div className="text-sm text-white font-mono">{metrics.turnover_ratio.toFixed(2)}x</div>
+          <div className="text-sm text-white font-mono">{(metrics.turnover_ratio ?? 0).toFixed(2)}x</div>
         </div>
         <div className="p-3 rounded-lg bg-bg-elevated border border-border-subtle/50 space-y-1">
           <div className="flex items-center gap-1 text-[10px] text-gray-500 font-mono font-bold uppercase tracking-wider">
@@ -141,7 +141,7 @@ export const CostBridge: React.FC<Props> = ({ metrics }) => {
               </div>
             </div>
           </div>
-          <div className="text-sm text-white font-mono">{metrics.fee_drag_bps.toFixed(1)} bps</div>
+          <div className="text-sm text-white font-mono">{(metrics.fee_drag_bps ?? 0).toFixed(1)} bps</div>
         </div>
         <div className="p-3 rounded-lg bg-bg-elevated border border-border-subtle/50 space-y-1">
           <div className="text-[10px] text-gray-500 font-mono font-bold uppercase tracking-wider">Fee-to-Alpha Ratio</div>
