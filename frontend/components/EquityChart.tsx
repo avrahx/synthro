@@ -10,8 +10,21 @@ interface Props {
   metrics: SummaryMetrics;
 }
 
+type Timeframe = "1M" | "3M" | "6M" | "1Y";
+
 export const EquityChart: React.FC<Props> = ({ curve, metrics }) => {
-  const data = curve.map((pt) => ({ ...pt, shortTime: pt.timestamp.slice(5, 13) }));
+  const [timeframe, setTimeframe] = React.useState<Timeframe>("6M");
+
+  const rawData = React.useMemo(() => {
+    let sliced = [...curve];
+    const total = sliced.length;
+    if (timeframe === "1M") sliced = sliced.slice(Math.max(0, total - 720));
+    else if (timeframe === "3M") sliced = sliced.slice(Math.max(0, total - 2160));
+    else if (timeframe === "6M") sliced = sliced.slice(Math.max(0, total - 4320));
+    return sliced.map((pt) => ({ ...pt, shortTime: pt.timestamp.slice(5, 13) }));
+  }, [curve, timeframe]);
+
+  const data = rawData;
 
   // Find continuous segments of `is_unwound` to draw ReferenceAreas
   const unwindSegments: { start: string; end: string }[] = [];
@@ -21,23 +34,25 @@ export const EquityChart: React.FC<Props> = ({ curve, metrics }) => {
       if (!currentStart) currentStart = data[i].shortTime;
     } else {
       if (currentStart) {
-        unwindSegments.push({ start: currentStart, end: data[i-1].shortTime });
+        unwindSegments.push({ start: currentStart, end: data[i - 1].shortTime });
         currentStart = null;
       }
     }
   }
-  if (currentStart) unwindSegments.push({ start: currentStart, end: data[data.length - 1].shortTime });
+  if (currentStart && data.length > 0) {
+    unwindSegments.push({ start: currentStart, end: data[data.length - 1].shortTime });
+  }
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-[#0C1017] border border-[#283352] rounded-lg p-3 font-mono text-[11px] text-white shadow-xl">
-          <div className="text-gray-400 mb-2 border-b border-[#283352] pb-1">{label}</div>
+        <div className="bg-[#0a0e16] border border-white/[0.12] rounded p-3 font-mono text-[11px] text-white shadow-2xl tabular-nums">
+          <div className="text-gray-400 mb-2 border-b border-white/[0.08] pb-1 font-bold">{label}</div>
           {payload.map((entry: any, index: number) => (
             <div key={index} className="flex justify-between gap-4 mb-1">
               <span style={{ color: entry.color }}>{entry.name}:</span>
               <span className="font-bold">
-                {entry.name === "Drawdown" 
+                {entry.name === "Drawdown"
                   ? `-${Number(entry.value).toFixed(2)}%`
                   : `$${(Number(entry.value) / 1000).toFixed(2)}k`}
               </span>
@@ -50,18 +65,35 @@ export const EquityChart: React.FC<Props> = ({ curve, metrics }) => {
   };
 
   return (
-    <div className="glass rounded-xl p-5 space-y-4">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-border-subtle pb-4">
+    <div className="card-protocol p-5 space-y-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-white/[0.08] pb-3">
         <div>
           <div className="flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-hl-cyan" />
-            <h2 className="font-mono text-sm font-bold text-white uppercase tracking-wide">
+            <TrendingUp className="w-4 h-4 text-[var(--cyan)]" />
+            <h2 className="font-mono text-xs font-bold text-white uppercase tracking-wider">
               Strategy Equity Curve vs Benchmark
             </h2>
           </div>
-          <p className="text-[11px] font-mono text-gray-500 mt-0.5">
+          <p className="text-[10px] font-mono text-gray-500 mt-0.5">
             Synchronized dual-pane view · Hourly mark-to-market
           </p>
+        </div>
+
+        {/* Timeframe Selector Pills */}
+        <div className="flex bg-black/60 border border-white/[0.08] rounded p-0.5 gap-0.5 shrink-0">
+          {(["1M", "3M", "6M", "1Y"] as const).map((tf) => (
+            <button
+              key={tf}
+              onClick={() => setTimeframe(tf)}
+              className={`px-2.5 py-0.5 text-[10px] font-mono rounded transition-colors ${
+                timeframe === tf
+                  ? "bg-[var(--cyan)]/20 text-[var(--cyan)] font-bold border border-[var(--cyan)]/40"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              {tf}
+            </button>
+          ))}
         </div>
       </div>
 

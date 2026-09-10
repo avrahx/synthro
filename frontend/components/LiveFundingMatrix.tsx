@@ -1,17 +1,29 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { FundingSnapshot } from "../lib/types";
+import { FundingSnapshot, FundingRateRow } from "../lib/types";
 import { fetchFunding } from "../lib/api";
-import { RefreshCw, ArrowUpDown, Zap, Search, Filter } from "lucide-react";
+import { RefreshCw, ArrowUpDown, Zap, Search } from "lucide-react";
 
-export const LiveFundingMatrix: React.FC = () => {
+export interface LiveFundingMatrixProps {
+  selectedSymbol?: string;
+  onSelectSymbol?: (symbol: string) => void;
+  isCompact?: boolean;
+}
+
+type FilterPill = "ALL" | "HIGH_YIELD" | "POSITIVE";
+
+export const LiveFundingMatrix: React.FC<LiveFundingMatrixProps> = ({
+  selectedSymbol = "SOL",
+  onSelectSymbol,
+  isCompact = false,
+}) => {
   const [data, setData] = useState<FundingSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<"apr" | "oi" | "vol">("apr");
   const [sortAsc, setSortAsc] = useState(false);
   const [search, setSearch] = useState("");
-  const [filterMode, setFilterMode] = useState<"ALL" | "POSITIVE" | "TOP10">("ALL");
+  const [filterMode, setFilterMode] = useState<FilterPill>("ALL");
   const [countdown, setCountdown] = useState("00:00");
 
   const load = async () => {
@@ -20,14 +32,14 @@ export const LiveFundingMatrix: React.FC = () => {
       const res = await fetchFunding();
       setData(res);
     } catch {
-      // fetchFunding already falls back gracefully; no action needed
+      // fetchFunding falls back gracefully; no crash
     }
     setLoading(false);
   };
 
   useEffect(() => {
     load();
-    const intervalId = setInterval(load, 15000); // 15 seconds poll
+    const intervalId = setInterval(load, 15000);
     return () => clearInterval(intervalId);
   }, []);
 
@@ -41,7 +53,7 @@ export const LiveFundingMatrix: React.FC = () => {
       const secs = Math.floor((diffMs % 60000) / 1000).toString().padStart(2, "0");
       setCountdown(`${mins}:${secs}`);
     };
-    
+
     updateCountdown();
     const timerId = setInterval(updateCountdown, 1000);
     return () => clearInterval(timerId);
@@ -50,40 +62,33 @@ export const LiveFundingMatrix: React.FC = () => {
   let filtered = data ? [...data.rates] : [];
 
   if (search) {
-    filtered = filtered.filter(r => r.symbol.toLowerCase().includes(search.toLowerCase()));
+    filtered = filtered.filter((r) =>
+      r.symbol.toLowerCase().includes(search.toLowerCase())
+    );
   }
 
-  if (filterMode === "POSITIVE") {
-    filtered = filtered.filter(r => r.hl_funding_annualized_pct > 0);
+  if (filterMode === "HIGH_YIELD") {
+    filtered = filtered.filter((r) => r.hl_funding_annualized_pct >= 15.0);
+  } else if (filterMode === "POSITIVE") {
+    filtered = filtered.filter((r) => r.hl_funding_annualized_pct > 0);
   }
 
   filtered.sort((a, b) => {
-    const diff = sortBy === "apr" ? a.hl_funding_annualized_pct - b.hl_funding_annualized_pct
-      : sortBy === "vol" ? (a.volume24h || 0) - (b.volume24h || 0)
-      : a.hl_open_interest_usd - b.hl_open_interest_usd;
+    const diff =
+      sortBy === "apr"
+        ? a.hl_funding_annualized_pct - b.hl_funding_annualized_pct
+        : sortBy === "vol"
+        ? (a.volume24h || 0) - (b.volume24h || 0)
+        : a.hl_open_interest_usd - b.hl_open_interest_usd;
     return sortAsc ? diff : -diff;
   });
 
-  if (filterMode === "TOP10") {
-    // Sort by APR descending regardless of current sort to pick top 10, then resort?
-    // Actually if they click Top 10 APY, we just take the top 10 of the sorted list
-    // Wait, "Top 10 APY" implies the top 10 by APY.
-    // Let's filter by top 10 APY first, then apply their sort.
-    let top10 = [...(data?.rates || [])].sort((a, b) => b.hl_funding_annualized_pct - a.hl_funding_annualized_pct).slice(0, 10);
-    // Apply search
-    if (search) top10 = top10.filter(r => r.symbol.toLowerCase().includes(search.toLowerCase()));
-    
-    top10.sort((a, b) => {
-      const diff = sortBy === "apr" ? a.hl_funding_annualized_pct - b.hl_funding_annualized_pct
-        : sortBy === "vol" ? (a.volume24h || 0) - (b.volume24h || 0)
-        : a.hl_open_interest_usd - b.hl_open_interest_usd;
-      return sortAsc ? diff : -diff;
-    });
-    filtered = top10;
-  }
-
   const handleSort = (key: "apr" | "oi" | "vol") => {
-    if (sortBy === key) setSortAsc(!sortAsc); else { setSortBy(key); setSortAsc(false); }
+    if (sortBy === key) setSortAsc(!sortAsc);
+    else {
+      setSortBy(key);
+      setSortAsc(false);
+    }
   };
 
   const formatShort = (val: number) => {
@@ -95,146 +100,231 @@ export const LiveFundingMatrix: React.FC = () => {
 
   const isLive = data?.network?.toLowerCase() === "mainnet";
 
+  // Micro-sparkline generator for visual momentum
+  const renderSparkline = (row: FundingRateRow) => {
+    const isPos = row.hl_funding_annualized_pct > 0;
+    const height = 18;
+    const width = 48;
+    const baseApr = Math.min(Math.max(row.hl_funding_annualized_pct, -50), 100);
+    const strokeColor = isPos ? "#0df2a4" : "#f43f5e";
+
+    // Synthetic 5-point sparkline based on row values
+    const seed = row.symbol.charCodeAt(0) % 5;
+    const points = [
+      [0, height / 2 + (seed - 2) * 2],
+      [12, height / 2 + ((seed + 1) % 4 - 2) * 2],
+      [24, height / 2 - (isPos ? 3 : -3)],
+      [36, height / 2 + (isPos ? -2 : 3)],
+      [48, height / 2 - (baseApr > 15 ? 6 : baseApr < 0 ? -6 : 1)],
+    ];
+    const pathD = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p[0]} ${p[1]}`).join(" ");
+
+    return (
+      <svg width={width} height={height} className="overflow-visible shrink-0 opacity-80 group-hover:opacity-100">
+        <path d={pathD} fill="none" stroke={strokeColor} strokeWidth="1.5" strokeLinecap="round" />
+        <circle cx={points[4][0]} cy={points[4][1]} r="2" fill={strokeColor} />
+      </svg>
+    );
+  };
+
   if (loading && !data) {
     return (
-      <div className="glass rounded-xl p-8 flex flex-col items-center justify-center">
-        <RefreshCw className="w-8 h-8 text-hl-cyan animate-spin mb-4" />
-        <span className="font-mono text-sm text-gray-400">CONNECTING TO HYPERLIQUID L1...</span>
+      <div className="card-protocol p-8 flex flex-col items-center justify-center">
+        <RefreshCw className="w-7 h-7 text-[var(--cyan)] animate-spin mb-3" />
+        <span className="font-mono text-xs text-gray-400">CONNECTING TO HYPERLIQUID L1...</span>
       </div>
     );
   }
 
   return (
-    <div className="glass rounded-xl overflow-hidden flex flex-col">
-      {/* Header */}
-      <div className="p-4 border-b border-border-subtle flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Zap className="w-5 h-5 text-hl-cyan" />
-          <h2 className="font-mono text-base font-bold text-white uppercase tracking-wide">
-            Live Funding Matrix
-          </h2>
-          <div className={`flex items-center px-2 py-1 rounded border text-[10px] font-mono font-bold uppercase tracking-wider ${isLive ? 'bg-synthro-mint/10 border-synthro-mint/30 text-synthro-mint' : 'bg-orange-500/10 border-orange-500/30 text-orange-500'}`}>
-            <span className={`w-2 h-2 rounded-full mr-1.5 ${isLive ? 'bg-synthro-mint animate-pulse' : 'bg-orange-500'}`} />
-            {isLive ? "LIVE HL MAINNET" : "CACHED FALLBACK"}
+    <div className="card-protocol overflow-hidden flex flex-col h-full">
+      {/* Header & Controls */}
+      <div className="p-3.5 border-b border-white/[0.08] flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Zap className="w-4 h-4 text-[var(--cyan)]" />
+            <span className="font-mono text-xs font-bold text-white uppercase tracking-wider">
+              Market Microstructure
+            </span>
+            <span className={`status-pill ${isLive ? "online" : "warn"} ml-1 text-[9px] py-0.5 px-1.5`}>
+              {isLive ? "HL L1 MAINNET" : "CACHED"}
+            </span>
           </div>
-          <div className="px-2 py-1 bg-bg-elevated rounded border border-border-strong text-xs font-mono text-gray-300">
-            Next Tick: <span className="text-synthro-mint ml-1">{countdown}</span>
+          <div className="flex items-center gap-1.5 text-[10px] font-mono text-gray-500">
+            <span>Tick:</span>
+            <span className="text-[var(--mint)] font-bold">{countdown}</span>
+            <button
+              onClick={load}
+              className="ml-1.5 p-1 rounded hover:bg-white/[0.06] text-gray-400 hover:text-white transition-colors"
+              title="Refresh"
+            >
+              <RefreshCw className={`w-3 h-3 ${loading ? "animate-spin text-[var(--cyan)]" : ""}`} />
+            </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Search */}
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input 
-              type="text" 
-              placeholder="Search..." 
+        {/* Search & Segmented Filter Pills */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+          <div className="relative flex-1">
+            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
+            <input
+              type="text"
+              placeholder="Filter asset (e.g. SOL, BTC)..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-8 pr-3 py-1.5 bg-bg-elevated border border-border-subtle rounded-lg text-sm text-white font-mono placeholder:text-gray-600 focus:outline-none focus:border-synthro-cyan"
+              className="w-full pl-8 pr-3 py-1 bg-black/40 border border-white/[0.08] rounded text-xs text-white font-mono placeholder:text-gray-600 focus:outline-none focus:border-[var(--cyan)] transition-colors"
             />
           </div>
 
-          {/* Filter */}
-          <div className="flex bg-bg-elevated border border-border-subtle rounded-lg p-0.5">
-            {(["ALL", "POSITIVE", "TOP10"] as const).map(mode => (
+          <div className="flex bg-black/50 border border-white/[0.08] rounded p-0.5 gap-0.5 shrink-0">
+            {(
+              [
+                { id: "ALL", label: "ALL" },
+                { id: "HIGH_YIELD", label: "HIGH YIELD >15%" },
+                { id: "POSITIVE", label: "POSITIVE ONLY" },
+              ] as const
+            ).map((pill) => (
               <button
-                key={mode}
-                onClick={() => setFilterMode(mode)}
-                className={`px-3 py-1 text-xs font-mono rounded-md transition-colors ${filterMode === mode ? 'bg-synthro-cyan/20 text-synthro-cyan font-bold' : 'text-gray-400 hover:text-white'}`}
+                key={pill.id}
+                onClick={() => setFilterMode(pill.id)}
+                className={`px-2 py-0.5 text-[10px] font-mono rounded transition-colors whitespace-nowrap ${
+                  filterMode === pill.id
+                    ? "bg-[var(--cyan)]/20 text-[var(--cyan)] font-bold border border-[var(--cyan)]/40"
+                    : "text-gray-400 hover:text-white"
+                }`}
               >
-                {mode === "TOP10" ? "Top 10 APY" : mode === "POSITIVE" ? "Positive Only" : "All"}
+                {pill.label}
               </button>
             ))}
           </div>
-
-          <button onClick={load} className="ml-2 p-1.5 rounded-lg bg-bg-elevated border border-border-subtle text-gray-400 hover:text-white transition-colors" title="Force Refresh">
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-synthro-cyan" : ""}`} />
-          </button>
         </div>
       </div>
 
-      <div className="overflow-x-auto max-h-[600px] overflow-y-auto custom-scrollbar">
-        <table className="w-full text-left font-mono text-xs">
-          <thead className="bg-bg-elevated/90 sticky top-0 z-10 backdrop-blur-md border-b border-border-subtle text-[10px] text-gray-500 uppercase">
+      {/* Dense Rows Table */}
+      <div className="overflow-x-auto flex-1 overflow-y-auto max-h-[640px] custom-scrollbar">
+        <table className="w-full text-left font-mono text-xs tabular-nums">
+          <thead className="bg-[#0a0e16]/95 sticky top-0 z-10 backdrop-blur-md border-b border-white/[0.08] text-[9px] text-gray-500 uppercase">
             <tr>
-              <th className="py-3 px-4">Asset</th>
-              <th className="py-3 px-4">Mark Price</th>
-              <th className="py-3 px-4">1h Rate</th>
-              <th className="py-3 px-4 cursor-pointer hover:text-synthro-cyan transition-colors" onClick={() => handleSort("apr")}>
-                <span className="flex items-center gap-1">Annualized APR <ArrowUpDown className="w-3 h-3" /></span>
+              <th className="py-2.5 px-3">Asset</th>
+              <th className="py-2.5 px-2">Mark Price</th>
+              <th
+                className="py-2.5 px-2 cursor-pointer hover:text-[var(--cyan)] transition-colors"
+                onClick={() => handleSort("apr")}
+              >
+                <span className="flex items-center gap-1">
+                  1h / APR <ArrowUpDown className="w-2.5 h-2.5" />
+                </span>
               </th>
-              <th className="py-3 px-4 cursor-pointer hover:text-white" onClick={() => handleSort("oi")}>
-                <span className="flex items-center gap-1">Open Interest <ArrowUpDown className="w-3 h-3" /></span>
-              </th>
-              <th className="py-3 px-4 cursor-pointer hover:text-white" onClick={() => handleSort("vol")}>
-                <span className="flex items-center gap-1">24h Volume <ArrowUpDown className="w-3 h-3" /></span>
-              </th>
-              <th className="py-3 px-4 text-right">Arbitrage Signal</th>
+              {!isCompact && (
+                <th
+                  className="py-2.5 px-2 cursor-pointer hover:text-white transition-colors"
+                  onClick={() => handleSort("oi")}
+                >
+                  <span className="flex items-center gap-1">
+                    OI <ArrowUpDown className="w-2.5 h-2.5" />
+                  </span>
+                </th>
+              )}
+              <th className="py-2.5 px-2 text-right">Trend / Signal</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border-subtle/40">
+          <tbody className="divide-y divide-white/[0.04]">
             {filtered.map((r) => {
+              const isSelected = selectedSymbol.toUpperCase() === r.symbol.toUpperCase();
               const isPositive = r.hl_funding_1h > 0;
               const isUnwound = r.hl_funding_annualized_pct < -2.0;
-              const colorClass = isUnwound ? "text-red-500 opacity-50" : (isPositive ? "text-synthro-mint" : "text-[#f43f5e]");
-              const isHighYield = r.hl_funding_annualized_pct > 15;
-              const rowBg = isUnwound ? "bg-red-500/5 hover:bg-red-500/10 border-l-2 border-red-500" : "hover:bg-bg-elevated/60";
+              const colorClass = isUnwound
+                ? "text-[var(--coral)] opacity-60"
+                : isPositive
+                ? "text-[var(--mint)]"
+                : "text-[var(--coral)]";
+              const isHighYield = r.hl_funding_annualized_pct >= 15.0;
 
               return (
-                <tr key={r.symbol} className={`transition-colors group ${rowBg}`}>
-                  <td className={`py-3 px-4 font-bold flex items-center gap-2 ${isUnwound ? 'text-red-400' : 'text-white'}`}>
-                    <span className={`w-2 h-2 rounded-full ${isUnwound ? 'bg-red-500' : 'bg-synthro-cyan'}`} />
-                    <span className="text-sm">{r.symbol}</span>
-                    {r.maxLeverage && (
-                      <span className="px-1.5 py-0.5 rounded bg-bg-raised text-[9px] text-gray-400 border border-border-subtle">
-                        {r.maxLeverage}x
+                <tr
+                  key={r.symbol}
+                  onClick={() => onSelectSymbol?.(r.symbol)}
+                  className={`transition-all group cursor-pointer ${
+                    isSelected
+                      ? "bg-[rgba(13,242,164,0.08)] border-l-2 border-[var(--mint)]"
+                      : "hover:bg-white/[0.03] border-l-2 border-transparent"
+                  }`}
+                >
+                  {/* Asset */}
+                  <td className="py-2.5 px-3">
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          isSelected
+                            ? "bg-[var(--mint)] animate-pulse"
+                            : isUnwound
+                            ? "bg-[var(--coral)]"
+                            : "bg-[var(--cyan)]"
+                        }`}
+                      />
+                      <span className={`font-bold text-xs ${isSelected ? "text-[var(--mint)]" : "text-white"}`}>
+                        {r.symbol}
                       </span>
-                    )}
-                  </td>
-                  <td className="py-3 px-4 text-gray-300">
-                    ${r.hl_mark_price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
-                  </td>
-                  <td className={`py-3 px-4 font-medium ${colorClass}`}>
-                    {isPositive ? "+" : ""}{(r.hl_funding_1h * 100).toFixed(4)}%
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="flex flex-col">
-                      <span className={`text-sm font-bold ${colorClass}`}>
-                        {isPositive ? "+" : ""}{r.hl_funding_annualized_pct.toFixed(2)}%
-                      </span>
-                      <span className="text-[9px] text-gray-500">vs {r.cex_funding_annualized_pct.toFixed(2)}% CEX</span>
+                      {r.maxLeverage && (
+                        <span className="px-1 py-0.2 rounded bg-white/[0.04] text-[8px] text-gray-400 border border-white/[0.06]">
+                          {r.maxLeverage}x
+                        </span>
+                      )}
                     </div>
                   </td>
-                  <td className="py-3 px-4 text-gray-300">
-                    {formatShort(r.hl_open_interest_usd)}
+
+                  {/* Mark Price */}
+                  <td className="py-2.5 px-2 text-gray-300">
+                    ${r.hl_mark_price.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 4,
+                    })}
                   </td>
-                  <td className="py-3 px-4 text-gray-400">
-                    {formatShort(r.volume24h || 0)}
+
+                  {/* 1h / APR */}
+                  <td className="py-2.5 px-2">
+                    <div className="flex flex-col leading-tight">
+                      <span className={`font-bold text-xs ${colorClass}`}>
+                        {isPositive ? "+" : ""}
+                        {r.hl_funding_annualized_pct.toFixed(2)}%
+                      </span>
+                      <span className="text-[9px] text-gray-500">
+                        {isPositive ? "+" : ""}
+                        {(r.hl_funding_1h * 100).toFixed(4)}%/h
+                      </span>
+                    </div>
                   </td>
-                  <td className="py-3 px-4 text-right">
-                    {isUnwound ? (
-                      <span className="inline-block px-2.5 py-1 rounded text-[10px] font-bold tracking-wider border bg-red-500/10 text-red-500 border-red-500/30">
-                        NEGATIVE CARRY - UNWOUND
-                      </span>
-                    ) : isHighYield ? (
-                      <span className="inline-block px-2.5 py-1 rounded text-[10px] font-bold tracking-wider border bg-synthro-mint/15 text-synthro-mint border-synthro-mint/30 shadow-[0_0_10px_rgba(77,235,214,0.2)]">
-                        High Yield Opportunity
-                      </span>
-                    ) : (
-                      <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold tracking-wider border bg-bg-elevated text-gray-400 border-border-strong group-hover:border-border-subtle transition-colors">
-                        {r.signal.replace("_", " ")}
-                      </span>
-                    )}
+
+                  {/* OI (hidden in compact) */}
+                  {!isCompact && (
+                    <td className="py-2.5 px-2 text-gray-400 text-[11px]">
+                      {formatShort(r.hl_open_interest_usd)}
+                    </td>
+                  )}
+
+                  {/* Trend & Signal */}
+                  <td className="py-2.5 px-2 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <div className="hidden sm:block">{renderSparkline(r)}</div>
+                      {isHighYield ? (
+                        <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider bg-[var(--mint)]/10 text-[var(--mint)] border border-[var(--mint)]/30">
+                          {r.hl_funding_annualized_pct.toFixed(0)}% APR
+                        </span>
+                      ) : (
+                        <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-mono text-gray-400 border border-white/[0.06]">
+                          {r.signal.replace("_", " ")}
+                        </span>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
             })}
-            
+
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="py-8 text-center text-gray-500 font-mono text-sm">
-                  No assets found matching filters.
+                <td colSpan={5} className="py-8 text-center text-gray-500 font-mono text-xs">
+                  No assets match current criteria.
                 </td>
               </tr>
             )}
@@ -244,3 +334,4 @@ export const LiveFundingMatrix: React.FC = () => {
     </div>
   );
 };
+export default LiveFundingMatrix;

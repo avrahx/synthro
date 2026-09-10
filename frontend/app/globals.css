@@ -382,6 +382,29 @@
   border-color: rgba(13,242,164,0.18);
 }
 
+/* Corner tick marks for industrial precision aesthetics */
+.corner-ticks {
+  position: relative;
+}
+.corner-ticks::before,
+.corner-ticks::after {
+  content: "+";
+  position: absolute;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.22);
+  line-height: 1;
+  pointer-events: none;
+}
+.corner-ticks::before {
+  top: 4px;
+  left: 6px;
+}
+.corner-ticks::after {
+  top: 4px;
+  right: 6px;
+}
+
 /* ── Protocol Buttons ─────────────────────────────────────────────────────── */
 /* Primary: filled mint → dark text, no rounded corners, hairline stroke      */
 .btn-protocol-primary {
