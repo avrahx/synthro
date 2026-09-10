@@ -83,6 +83,9 @@ class QuantEngine:
 
         df = pl.DataFrame(raw_data).sort(["epoch", "asset"])
 
+        # Step 0 – Sanitize inputs: fill nulls, safe-cast numerics
+        df = self._sanitize_input(df)
+
         # Step 1 – Regime sensitivity filter
         df = self._apply_regime_filter(df)
 
@@ -111,6 +114,49 @@ class QuantEngine:
 
         return QuantResult(equity_curve, trades, attribution, metrics)
 
+    # ── Input Sanitization ────────────────────────────────────────────────
+
+    def _sanitize_input(self, df: pl.DataFrame) -> pl.DataFrame:
+        """
+        Defensively clean raw tick data before any computation:
+          - Safe-cast string numerics to Float64 (strict=False avoids batch crashes)
+          - Forward-fill null values per asset so missing epochs don't cascade
+          - Clip funding rates to prevent extreme synthetic outliers blowing metrics
+        """
+        numeric_cols = ["mark_price", "funding_rate_1h", "basis_bps"]
+        if "cex_funding_rate_8h" in df.columns:
+            numeric_cols.append("cex_funding_rate_8h")
+
+        # Safe-cast any string numerics; non-parseable values become null then 0.0
+        cast_exprs = [
+            pl.col(c).cast(pl.Float64, strict=False).fill_null(0.0).alias(c)
+            for c in numeric_cols
+            if c in df.columns
+        ]
+        if cast_exprs:
+            df = df.with_columns(cast_exprs)
+
+        # Forward-fill nulls per asset for remaining columns
+        ff_cols = [c for c in numeric_cols if c in df.columns]
+        if ff_cols:
+            df = df.with_columns(
+                [pl.col(c).forward_fill().over("asset").fill_null(0.0) for c in ff_cols]
+            )
+
+        # Clip funding rates: OU process should stay in [-0.2%, +0.5%] per hour
+        if "funding_rate_1h" in df.columns:
+            df = df.with_columns(
+                funding_rate_1h=pl.col("funding_rate_1h").clip(-0.002, 0.005)
+            )
+
+        # Ensure mark_price is always positive
+        if "mark_price" in df.columns:
+            df = df.with_columns(
+                mark_price=pl.col("mark_price").clip(lower_bound=1e-8)
+            )
+
+        return df
+
     # ── Regime Filter ─────────────────────────────────────────────────────
 
     def _apply_regime_filter(self, df: pl.DataFrame) -> pl.DataFrame:
@@ -134,7 +180,7 @@ class QuantEngine:
         df = df.with_columns(
             neg_count=pl.col("is_neg_fund")
             .cast(pl.Int32)
-            .rolling_sum(window_size=window, min_periods=window)
+            .rolling_sum(window_size=window, min_samples=window)
             .over("asset")
             .fill_null(0)
         )
@@ -169,10 +215,10 @@ class QuantEngine:
         # Rolling 24h Z-score per asset
         df = df.with_columns(
             spread_mean=pl.col("spread_1h")
-            .rolling_mean(window_size=24, min_periods=1)
+            .rolling_mean(window_size=24, min_samples=1)
             .over("asset"),
             spread_std=pl.col("spread_1h")
-            .rolling_std(window_size=24, min_periods=1)
+            .rolling_std(window_size=24, min_samples=1)
             .over("asset"),
         )
         df = df.with_columns(
@@ -337,17 +383,24 @@ class QuantEngine:
         mean_r = float(rets.mean()) if len(rets) else 0.0
         std_r = float(rets.std()) if len(rets) > 1 else 1e-10
 
-        sharpe = (mean_r / std_r * ANN_FACTOR) if std_r > 1e-10 else 0.0
+        sharpe_raw = (mean_r / std_r * ANN_FACTOR) if std_r > 1e-10 else 0.0
+        sharpe = sharpe_raw if math.isfinite(sharpe_raw) else 0.0
 
         downside = rets[rets < 0]
         if len(downside) > 0:
             ds_std = float((downside**2).mean() ** 0.5)
-            sortino = (mean_r / ds_std * ANN_FACTOR) if ds_std > 1e-10 else sharpe * 1.4
+            sortino_raw = (mean_r / ds_std * ANN_FACTOR) if ds_std > 1e-10 else sharpe * 1.4
+            sortino = sortino_raw if math.isfinite(sortino_raw) else 0.0
         else:
+            # No negative returns — all-positive equity curve; Sortino is undefined/infinite;
+            # return a conservative multiple of Sharpe rather than inf
             sortino = sharpe * 1.4
 
         drawdowns = portfolio["dd_pct"].to_numpy()
         max_dd = float(drawdowns.max()) if len(drawdowns) else 0.0
+        # Monotonically increasing curve — guarantee clean 0.0 output
+        if not math.isfinite(max_dd) or max_dd < 0:
+            max_dd = 0.0
         calmar = (cagr / max_dd) if max_dd > 0.01 else 0.0
 
         # Ulcer Index

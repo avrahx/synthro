@@ -5,8 +5,8 @@ Pydantic BaseSettings for Hyperliquid testnet/mainnet endpoints,
 RPC URLs, API ports, and vault simulation parameters.
 """
 
-from pydantic_settings import BaseSettings
 from typing import Literal
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -51,9 +51,7 @@ class Settings(BaseSettings):
     def hl_api_url(self) -> str:
         return self.HL_MAINNET_API if self.HL_NETWORK == "mainnet" else self.HL_TESTNET_API
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 
 settings = Settings()

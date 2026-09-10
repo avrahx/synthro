@@ -24,6 +24,11 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Retry configuration
+_MAX_RETRIES: int = 3
+_RETRY_STATUS: frozenset[int] = frozenset({429, 500, 502, 503, 504})
+_BASE_BACKOFF: float = 1.0  # seconds; doubles each retry
+
 # ── TTL Cache ─────────────────────────────────────────────────────────────────
 
 class _TTLCache:
@@ -151,23 +156,53 @@ class HyperliquidClient:
     # ── HTTP Helper ───────────────────────────────────────────────────────
 
     async def _post(self, payload: dict) -> dict | list | None:
-        """POST to /info endpoint with 15s TTL caching."""
+        """POST to /info with TTL cache, 10s timeout, and exponential backoff retry."""
         cache_key = str(sorted(payload.items()))
         cached = self._cache.get(cache_key)
         if cached is not None:
             logger.debug("Cache hit: %s", cache_key[:60])
             return cached
 
-        try:
-            client = self._get_client()
-            resp = await client.post(f"{self.base_url}/info", json=payload)
-            if resp.status_code == 200:
-                data = resp.json()
-                self._cache.set(cache_key, data)
-                return data
-            logger.warning("HL API returned %d for %s", resp.status_code, payload.get("type"))
-        except Exception as exc:
-            logger.debug("HL API unreachable (%s) — using mock", exc)
+        client = self._get_client()
+        backoff = _BASE_BACKOFF
+        for attempt in range(1, _MAX_RETRIES + 1):
+            try:
+                resp = await client.post(
+                    f"{self.base_url}/info",
+                    json=payload,
+                    timeout=httpx.Timeout(10.0),
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    self._cache.set(cache_key, data)
+                    return data
+                if resp.status_code in _RETRY_STATUS and attempt < _MAX_RETRIES:
+                    logger.warning(
+                        "HL API %d on attempt %d/%d for %s — retrying in %.1fs",
+                        resp.status_code, attempt, _MAX_RETRIES,
+                        payload.get("type"), backoff,
+                    )
+                    await asyncio.sleep(backoff)
+                    backoff *= 2.0
+                    continue
+                logger.warning(
+                    "HL API returned %d for %s (no retry)",
+                    resp.status_code, payload.get("type"),
+                )
+                return None
+            except (httpx.TimeoutException, httpx.NetworkError) as exc:
+                if attempt < _MAX_RETRIES:
+                    logger.debug(
+                        "HL API network error attempt %d/%d: %s — retrying in %.1fs",
+                        attempt, _MAX_RETRIES, exc, backoff,
+                    )
+                    await asyncio.sleep(backoff)
+                    backoff *= 2.0
+                else:
+                    logger.debug("HL API unreachable after %d attempts: %s — using mock", _MAX_RETRIES, exc)
+            except Exception as exc:
+                logger.debug("HL API unexpected error: %s — using mock", exc)
+                return None
         return None
 
     # ── Live Funding Rates ────────────────────────────────────────────────

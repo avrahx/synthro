@@ -76,8 +76,8 @@ class BasisBacktestEngine:
         # Calculate Z-score of spread over a 24h rolling window (approx 24 epochs per asset)
         # Using a simple moving average and std for the Z-score
         df = df.with_columns(
-            spread_mean_24h=pl.col("spread_1h").rolling_mean(window_size=24, min_periods=1).over("asset"),
-            spread_std_24h=pl.col("spread_1h").rolling_std(window_size=24, min_periods=1).over("asset")
+            spread_mean_24h=pl.col("spread_1h").rolling_mean(window_size=24, min_samples=1).over("asset"),
+            spread_std_24h=pl.col("spread_1h").rolling_std(window_size=24, min_samples=1).over("asset")
         )
         
         df = df.with_columns(
