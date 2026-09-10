@@ -124,7 +124,7 @@ export interface FundingRateRow {
 
 export interface FundingSnapshot {
   timestamp: string;
-  network: "testnet" | "mainnet";
+  network: "testnet" | "mainnet" | string;  // string allows graceful fallback values
   rates: FundingRateRow[];
   avg_hl_annualized_pct: number;
   avg_cex_annualized_pct: number;

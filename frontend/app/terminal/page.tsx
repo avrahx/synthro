@@ -183,7 +183,7 @@ export default function TerminalPage() {
           {(isConnected && address) && (
             <div className="status-pill online mt-2" style={{ fontSize: "9px" }}>
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--cyan)]" />
-              {address.slice(0, 6)}…{address.slice(-4)}
+              {address?.slice(0, 6)}…{address?.slice(-4)}
             </div>
           )}
           {isDemoMode && !isConnected && (
@@ -230,7 +230,7 @@ export default function TerminalPage() {
             <div className="flex items-center gap-2 text-gray-400">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--mint)] animate-pulse" />
               {isConnected && address
-                ? <><span className="text-white font-bold">{address.slice(0, 6)}…{address.slice(-4)}</span><span className="hidden lg:inline ml-1">— Real-time HL clearinghouse data available.</span></>
+                ? <><span className="text-white font-bold">{address?.slice(0, 6)}…{address?.slice(-4)}</span><span className="hidden lg:inline ml-1">— Real-time HL clearinghouse data available.</span></>
                 : <><span className="text-[var(--mint)] font-bold">Demo Mode</span><span className="hidden lg:inline ml-1">— Simulated whale portfolio loaded.</span></>
               }
             </div>

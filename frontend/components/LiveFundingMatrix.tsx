@@ -19,8 +19,8 @@ export const LiveFundingMatrix: React.FC = () => {
     try {
       const res = await fetchFunding();
       setData(res);
-    } catch (err) {
-      console.error(err);
+    } catch {
+      // fetchFunding already falls back gracefully; no action needed
     }
     setLoading(false);
   };

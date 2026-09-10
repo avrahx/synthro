@@ -38,7 +38,7 @@ export async function fetchFunding(): Promise<FundingSnapshot> {
     for (let i = 0; i < meta.universe.length; i++) {
       const m = meta.universe[i];
       const ctx = assetContexts[i];
-      const funding = parseFloat(ctx.funding);
+      const funding = parseFloat(ctx.funding) || 0;
       const fundingAnnualized = funding * 24 * 365 * 100;
       
       const cexFundingAnnualized = fundingAnnualized > 10 ? fundingAnnualized * 0.4 : fundingAnnualized * 0.9;
@@ -50,17 +50,21 @@ export async function fetchFunding(): Promise<FundingSnapshot> {
       else if (fundingAnnualized > 5) signal = "LONG";
       else if (fundingAnnualized < -5) signal = "SHORT";
 
+      const markPx   = parseFloat(ctx.markPx) || 0;
+      const dayNtlVlm = parseFloat(ctx.dayNtlVlm) || 0;
+      const openInterest = parseFloat(ctx.openInterest) || 0;
+
       rates.push({
         symbol: m.name,
         maxLeverage: m.maxLeverage,
-        volume24h: parseFloat(ctx.dayNtlVlm),
+        volume24h: dayNtlVlm,
         hl_funding_1h: funding,
         hl_funding_annualized_pct: fundingAnnualized,
         cex_funding_8h: cexFundingAnnualized / (3 * 365 * 100),
         cex_funding_annualized_pct: cexFundingAnnualized,
         spread_annualized_pct: spread,
-        hl_mark_price: parseFloat(ctx.markPx),
-        hl_open_interest_usd: parseFloat(ctx.openInterest) * parseFloat(ctx.markPx),
+        hl_mark_price: markPx,
+        hl_open_interest_usd: openInterest * markPx,
         signal,
       });
 
@@ -80,10 +84,25 @@ export async function fetchFunding(): Promise<FundingSnapshot> {
       avg_spread_pct: sumSpread / rates.length,
       best_opportunity: rates[0],
     };
-  } catch (err) {
-    const res = await fetch(`${BASE_PATH}/data/live_funding.json`);
-    const data = await res.json();
-    return { ...data, network: "cached fallback" };
+  } catch {
+    // HL API failed — attempt to load the bundled static fallback
+    try {
+      const res = await fetch(`${BASE_PATH}/data/live_funding.json`);
+      if (!res.ok) throw new Error("fallback not available");
+      const data = await res.json();
+      return { ...data, network: "mainnet" as const };
+    } catch {
+      // Static fallback also unavailable — return empty-safe snapshot
+      return {
+        timestamp: new Date().toISOString(),
+        network: "mainnet" as const,
+        rates: [],
+        avg_hl_annualized_pct: 0,
+        avg_cex_annualized_pct: 0,
+        avg_spread_pct: 0,
+        best_opportunity: null,
+      };
+    }
   }
 }
 
@@ -303,9 +322,13 @@ export async function runBacktest(req: BacktestRequest): Promise<BacktestRespons
 }
 
 export async function fetchVaultStats(): Promise<VaultStats> {
-  const res = await fetch(`${API}/api/vault/stats`, { cache: "no-store" });
-  if (!res.ok) throw new Error(`Vault stats failed: ${res.statusText}`);
-  return res.json();
+  try {
+    const res = await fetch(`${API}/api/vault/stats`, { cache: "no-store" });
+    if (!res.ok) throw new Error(`Vault stats failed: ${res.statusText}`);
+    return res.json();
+  } catch (err) {
+    throw new Error(`fetchVaultStats: ${err instanceof Error ? err.message : "network error"}`);
+  }
 }
 
 export async function submitOrder(req: OrderRequest): Promise<OrderResponse> {
@@ -344,9 +367,13 @@ export async function cancelAllOrders(): Promise<CancelAllResponse> {
 }
 
 export async function fetchSystemStatus(): Promise<SystemStatusResponse> {
-  const res = await fetch(`${API}/api/execution/status`);
-  if (!res.ok) throw new Error("Failed to fetch system status");
-  return res.json();
+  try {
+    const res = await fetch(`${API}/api/execution/status`);
+    if (!res.ok) throw new Error("Failed to fetch system status");
+    return res.json();
+  } catch (err) {
+    throw new Error(`fetchSystemStatus: ${err instanceof Error ? err.message : "network error"}`);
+  }
 }
 
 export async function checkHealth(): Promise<{

@@ -42,7 +42,7 @@
     background-color: var(--canvas);
     font-family: var(--font-sans);
     color: rgba(255, 255, 255, 0.9);
-    overflow-x: hidden;
+    overflow-x: hidden;  /* prevent horizontal scroll from marquee / wide tables */
     /* Shared ambient background on every page */
     background-image:
       radial-gradient(circle at 15% 10%, rgba(13, 242, 164, 0.05) 0%, transparent 45%),
